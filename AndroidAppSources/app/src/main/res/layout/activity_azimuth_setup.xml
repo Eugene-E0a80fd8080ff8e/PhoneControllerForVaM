@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<android.support.constraint.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".AzimuthSetup">
+
+    <TextView
+        android:id="@+id/textViewMsg"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="  For the best expirience your phone needs to know how it is located relative to you monitor. This will let preserve directions of rotations from the phone to a monitor.
+\n  Basicly, it needs to know the absolute magnetic direction from your phone to your monitor. This page will let you provide this value with one simple click.
+\n  1. First of all, make sure your phone's magnetometer is calibrated properly. To calibrate it, swing your phone around a little. If needed, search youtube for «Magnetic sensor calibration»
+\n  2. Point your phone to a monitor, as if you were filming a vertical video of your monitor. While holding it so, press button «Use this direction». The direction will be stored.
+\n  3. Press the «Back» button."
+        android:gravity="left"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        android:paddingLeft="10dp"
+        android:paddingRight="10dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp"
+        android:textSize="18dp"
+        />
+
+    <TextView
+        android:id="@+id/calibrationMessage"
+        android:layout_height="wrap_content"
+        android:layout_width="match_parent"
+        android:text="Magnetometer is not calibrated. Swing you phone"
+        android:paddingLeft="10dp"
+        android:paddingRight="10dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp"
+        android:textSize="16dp"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/textViewMsg"
+        android:gravity="left"
+        android:textColor="@android:color/holo_red_light"
+        />
+
+    <TextView
+        android:id="@+id/directionMessage"
+        android:layout_height="wrap_content"
+        android:layout_width="match_parent"
+        android:text="Magnetic direction: -1"
+        android:paddingLeft="10dp"
+        android:paddingRight="10dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp"
+        android:textSize="24dp"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/calibrationMessage"
+        android:gravity="center"
+        android:textColor="@android:color/holo_blue_dark"
+        />
+
+    <Button
+        android:id="@+id/buttonUseThisDirection"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Use this direction"
+        android:textSize="24dp"
+        android:padding="14dp"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/directionMessage"
+        />
+
+    <TextView
+        android:id="@+id/FYIdirectionMsg"
+        android:layout_height="wrap_content"
+        android:layout_width="match_parent"
+        android:text="* Just for reference: direction 0 (zero) corresponds to North, 90 to East, 180 to South, 270 to West and 360 to North again."
+        android:paddingLeft="10dp"
+        android:paddingRight="10dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp"
+        android:textSize="13dp"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/buttonUseThisDirection"
+        android:gravity="left"
+        android:textColor="@android:color/black"
+        />
+
+
+</android.support.constraint.ConstraintLayout>

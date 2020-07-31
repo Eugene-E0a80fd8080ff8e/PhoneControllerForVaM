@@ -1,0 +1,359 @@
+<?xml version="1.0" encoding="utf-8"?>
+<android.support.constraint.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".MainActivity"
+    tools:layout_editor_absoluteY="81dp">
+
+    <TextView
+        android:id="@+id/sensorStatusText"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="Magnetometer is not calibrated: 0/3"
+
+        android:textColor="@android:color/holo_red_dark"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        android:visibility="invisible"
+        />
+
+    <TextView
+        android:id="@+id/connectedToText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Not connected"
+        android:gravity="right"
+
+        android:textColor="@android:color/black"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        android:visibility="visible"
+        />
+
+    <TextView
+        android:id="@+id/pleaseSetDirection"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Please visit\nsettings page"
+        android:gravity="center"
+        android:textSize="20dp"
+
+        android:textColor="@android:color/holo_red_dark"
+        app:layout_constraintLeft_toRightOf="@+id/buttonEngageHead"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/connectedToText"
+        android:visibility="visible"
+        />
+
+
+    <Button
+        android:id="@+id/buttonEngageHead"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="Head"
+        android:textAllCaps="false"
+        android:textSize="20dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="16dp"
+        android:paddingLeft="20dp"
+        android:paddingRight="20dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <Button
+        android:id="@+id/buttonEngageNeck"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:text="Neck"
+        android:textAllCaps="false"
+        android:textSize="20dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="16dp"
+        android:paddingLeft="20dp"
+        android:paddingRight="20dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/buttonEngageHead"
+        />
+
+    <android.support.constraint.Guideline
+        android:id="@+id/verticalGuideline"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        app:layout_constraintGuide_percent="0.5" />
+
+    <Button
+        android:id="@+id/buttonEngageLArm"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="lArm"
+        android:textAllCaps="false"
+        android:layout_marginTop="2dp"
+        android:layout_marginRight="16dp"
+        app:layout_constraintTop_toBottomOf="@+id/buttonEngageNeck"
+        app:layout_constraintRight_toLeftOf="@id/verticalGuideline"
+        android:textSize="20dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="16dp"
+        android:paddingLeft="20dp"
+        android:paddingRight="20dp"
+        />
+
+    <Button
+        android:id="@+id/buttonEngageLElbow"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="lElbow"
+        android:textAllCaps="false"
+        android:layout_marginTop="2dp"
+        android:layout_marginRight="16dp"
+        app:layout_constraintTop_toBottomOf="@+id/buttonEngageLArm"
+        app:layout_constraintRight_toLeftOf="@id/verticalGuideline"
+        android:textSize="20dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="16dp"
+        android:paddingLeft="20dp"
+        android:paddingRight="20dp"
+        />
+
+    <Button
+        android:id="@+id/buttonEngageLHand"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="lHand"
+        android:textAllCaps="false"
+        android:layout_marginTop="2dp"
+        android:layout_marginRight="16dp"
+        app:layout_constraintTop_toBottomOf="@+id/buttonEngageLElbow"
+        app:layout_constraintRight_toLeftOf="@id/verticalGuideline"
+        android:textSize="20dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="16dp"
+        android:paddingLeft="20dp"
+        android:paddingRight="20dp"
+        />
+
+    <Button
+        android:id="@+id/buttonEngageRArm"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="rArm"
+        android:textAllCaps="false"
+        android:layout_marginTop="2dp"
+        android:layout_marginLeft="16dp"
+        app:layout_constraintTop_toBottomOf="@+id/buttonEngageNeck"
+        app:layout_constraintLeft_toRightOf="@id/verticalGuideline"
+        android:textSize="20dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="16dp"
+        android:paddingLeft="20dp"
+        android:paddingRight="20dp"
+        />
+
+    <Button
+        android:id="@+id/buttonEngageRElbow"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="rElbow"
+        android:textAllCaps="false"
+        android:layout_marginTop="2dp"
+        android:layout_marginLeft="16dp"
+        app:layout_constraintTop_toBottomOf="@+id/buttonEngageRArm"
+        app:layout_constraintLeft_toRightOf="@id/verticalGuideline"
+        android:textSize="20dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="16dp"
+        android:paddingLeft="20dp"
+        android:paddingRight="20dp"
+        />
+
+    <Button
+        android:id="@+id/buttonEngageRHand"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="rHand"
+        android:textAllCaps="false"
+        android:layout_marginTop="2dp"
+        android:layout_marginLeft="16dp"
+        app:layout_constraintTop_toBottomOf="@+id/buttonEngageRElbow"
+        app:layout_constraintLeft_toRightOf="@id/verticalGuideline"
+        android:textSize="20dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="16dp"
+        android:paddingLeft="20dp"
+        android:paddingRight="20dp"
+        />
+
+    <Button
+        android:id="@+id/buttonEngageChest"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Chest"
+        android:textAllCaps="false"
+        app:layout_constraintTop_toBottomOf="@+id/buttonEngageLHand"
+        android:layout_marginTop="2dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+
+        android:textSize="20dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="16dp"
+        android:paddingLeft="20dp"
+        android:paddingRight="20dp"
+        />
+
+    <Button
+        android:id="@+id/buttonEngageHip"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Hip"
+        android:textAllCaps="false"
+        app:layout_constraintTop_toBottomOf="@+id/buttonEngageChest"
+        android:layout_marginTop="2dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+
+        android:textSize="20dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="16dp"
+        android:paddingLeft="20dp"
+        android:paddingRight="20dp"
+        />
+
+    <Button
+        android:id="@+id/buttonEngageLThigh"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="lThigh"
+        android:textAllCaps="false"
+        android:layout_marginTop="2dp"
+        android:layout_marginRight="16dp"
+        app:layout_constraintTop_toBottomOf="@+id/buttonEngageHip"
+        app:layout_constraintRight_toLeftOf="@id/verticalGuideline"
+
+        android:textSize="20dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="16dp"
+        android:paddingLeft="20dp"
+        android:paddingRight="20dp"
+        />
+
+    <Button
+        android:id="@+id/buttonEngageRThigh"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="rThigh"
+        android:textAllCaps="false"
+        android:layout_marginTop="2dp"
+        android:layout_marginLeft="16dp"
+        app:layout_constraintTop_toBottomOf="@+id/buttonEngageHip"
+        app:layout_constraintLeft_toRightOf="@id/verticalGuideline"
+
+        android:textSize="20dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="16dp"
+        android:paddingLeft="20dp"
+        android:paddingRight="20dp"
+        />
+
+    <Button
+        android:id="@+id/buttonEngageLKnee"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="lKnee"
+        android:textAllCaps="false"
+        android:layout_marginTop="2dp"
+        android:layout_marginRight="16dp"
+        app:layout_constraintTop_toBottomOf="@+id/buttonEngageLThigh"
+        app:layout_constraintRight_toLeftOf="@id/verticalGuideline"
+
+        android:textSize="20dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="16dp"
+        android:paddingLeft="20dp"
+        android:paddingRight="20dp"
+        />
+
+    <Button
+        android:id="@+id/buttonEngageRKnee"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="rKnee"
+        android:textAllCaps="false"
+        android:layout_marginTop="2dp"
+        android:layout_marginLeft="16dp"
+        app:layout_constraintTop_toBottomOf="@+id/buttonEngageRThigh"
+        app:layout_constraintLeft_toRightOf="@id/verticalGuideline"
+
+        android:textSize="20dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="16dp"
+        android:paddingLeft="20dp"
+        android:paddingRight="20dp"
+        />
+
+    <Button
+        android:id="@+id/buttonEngageLFoot"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="lFoot"
+        android:textAllCaps="false"
+        android:layout_marginTop="2dp"
+        android:layout_marginRight="16dp"
+        app:layout_constraintTop_toBottomOf="@+id/buttonEngageLKnee"
+        app:layout_constraintRight_toLeftOf="@id/verticalGuideline"
+
+        android:textSize="20dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="16dp"
+        android:paddingLeft="20dp"
+        android:paddingRight="20dp"
+        />
+
+    <Button
+        android:id="@+id/buttonEngageRFoot"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="rFoot"
+        android:textAllCaps="false"
+        android:layout_marginTop="2dp"
+        android:layout_marginLeft="16dp"
+        app:layout_constraintTop_toBottomOf="@+id/buttonEngageRKnee"
+        app:layout_constraintLeft_toRightOf="@id/verticalGuideline"
+
+        android:textSize="20dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="16dp"
+        android:paddingLeft="20dp"
+        android:paddingRight="20dp"
+        />
+
+    <!--  **************************** -->
+    <Switch
+        android:id="@+id/switchMoveSweeps"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Use sweeps\nfor\nmovements"
+        android:gravity="center"
+        android:checked="false"
+
+        android:textSize="14dp"
+        android:layout_marginTop="8dp"
+        android:paddingLeft="2dp"
+        android:paddingTop="2dp"
+        android:paddingBottom="2dp"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/buttonEngageChest"
+        />
+
+
+
+</android.support.constraint.ConstraintLayout>
