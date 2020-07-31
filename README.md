@@ -6,7 +6,7 @@ Then you rotate it in any of three directions.
 It also includes a 6-DoF attempt to move limbs around. This does not work very well due to accelerometer drift.
 You still can move limb with a swift moves though. Expirience may vary with phone.
 
-![This is how it looks like](images/Screenshot_20200731-194202.png| width=240)
+<img src="images/Screenshot_20200731-194202.png" width="33%">
 
 # Prerequisites
 
