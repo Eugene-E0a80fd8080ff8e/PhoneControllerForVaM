@@ -95,3 +95,7 @@ lint/tmp/
 /build
 /captures
 .externalNativeBuild
+
+/app/src/test
+/app/src/androidTest
+/app/release

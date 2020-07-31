@@ -1,3 +1,4 @@
+
 package local.movementtrackerforvam.movementtrackerforvam;
 
 import android.content.Context;
@@ -231,10 +232,10 @@ public class MainActivity extends AppCompatActivity implements StateManager.Stat
                     csl_normal = ((Button)findViewById(R.id.buttonEngageLHand)).getBackgroundTintList();
 
                 if(isChecked) {
-                    ((Button)findViewById(R.id.buttonEngageLHand)).setBackgroundTintList(MyApplication.getAppContext().getResources().getColorStateList(R.color.colorPink));
-                    ((Button)findViewById(R.id.buttonEngageRHand)).setBackgroundTintList(MyApplication.getAppContext().getResources().getColorStateList(R.color.colorPink));
-                    ((Button)findViewById(R.id.buttonEngageLFoot)).setBackgroundTintList(MyApplication.getAppContext().getResources().getColorStateList(R.color.colorPink));
-                    ((Button)findViewById(R.id.buttonEngageRFoot)).setBackgroundTintList(MyApplication.getAppContext().getResources().getColorStateList(R.color.colorPink));
+                    ((Button)findViewById(R.id.buttonEngageLHand)).setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#FFB7C5")));
+                    ((Button)findViewById(R.id.buttonEngageRHand)).setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#FFB7C5")));
+                    ((Button)findViewById(R.id.buttonEngageLFoot)).setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#FFB7C5")));
+                    ((Button)findViewById(R.id.buttonEngageRFoot)).setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#FFB7C5")));
                 }else{
                     ((Button)findViewById(R.id.buttonEngageLHand)).setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#d8d8d8")));
                     ((Button)findViewById(R.id.buttonEngageRHand)).setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#d8d8d8")));
