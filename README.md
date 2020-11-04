@@ -31,9 +31,12 @@ or with somebody's help.
 
 2. Open this page in a browser of your phone.
 
-   Click **View Code**, then click *Apk*. This will open the folder with app file in it.
+   Follow this link on your phone: <https://github.com/Eugene-E0a80fd8080ff8e/PhoneControllerForVaM/releases>
 
-   Click on the file **PhoneControllerForVaM-release.apk** (filename might be cropped). Click **Download** button.
+   On the page there will be list of releases. 
+   Most recent one would be on top. 
+   Click on *PhoneControllerForVaM.apk* to download the apk file (the file which contains the app). 
+   This will open the folder with app file in it.
 
 3. Once it is downloaded, open the file and confirm the installation.
 
