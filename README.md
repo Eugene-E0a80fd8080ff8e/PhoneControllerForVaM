@@ -61,8 +61,7 @@ picture of something on your monitor. Once magnetic direction stabilizes, click 
 
 ### Second, lets install the plugin for VaM.
 
-1. On this page click **VaMplugin** to open the folder. There, click **PhoneController.cs** to open the file. 
-Find the **Raw** button, right click it and choose *Save link as...*.
+1. On release page(<https://github.com/Eugene-E0a80fd8080ff8e/PhoneControllerForVaM/releases>) find **PhoneController.cs** file. Click on it to download it.
 
    Save the file to **_Your-VAM-Folder_/Custom/Scripts/** folder.
 
