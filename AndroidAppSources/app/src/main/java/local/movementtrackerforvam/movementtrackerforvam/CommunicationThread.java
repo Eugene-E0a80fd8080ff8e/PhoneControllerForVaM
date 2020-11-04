@@ -44,10 +44,13 @@ public class CommunicationThread implements Runnable {
             }
         }
         thr=null;
-        if(null!=socket) {
-            socket.close();
-            socket = null;
+
+        for(int p : sockets.keySet())
+        {
+            sockets.get(p).close();
+            sockets.remove(p);
         }
+
         StateManager.update( (state) -> { state.clientsList = ""; return state; });
 
     }
@@ -74,7 +77,7 @@ public class CommunicationThread implements Runnable {
     }
 
 
-    private DatagramSocket socket = null;
+    private TreeMap<Integer,DatagramSocket> sockets = new TreeMap<Integer,DatagramSocket>();
     private DatagramSocket getSocket()
     {
         Context context = MyApplication.getAppContext();
@@ -82,10 +85,10 @@ public class CommunicationThread implements Runnable {
         String port = sp.getString("network_port","62701");
         int iport = Integer.parseInt(port);
 
-        if(null == socket ) {
+        if( ! sockets.containsKey(iport) ) {
             try {
-                socket = new DatagramSocket(iport);
-                socket.setSoTimeout(1);
+                sockets.put(iport, new DatagramSocket(iport) );
+                sockets.get(iport).setSoTimeout(1);
                 //socket.setBroadcast(true);
             }catch(SocketException e) {
                 Log.d("CommunicationThread", "Socket Exception");
@@ -93,14 +96,7 @@ public class CommunicationThread implements Runnable {
             }
         }
 
-        if( socket.getLocalPort() != iport )
-        {
-            socket.close();
-            socket=null;
-            return getSocket();
-        }
-
-        return socket;
+        return sockets.get(iport);
 
     }
 
@@ -148,8 +144,7 @@ public class CommunicationThread implements Runnable {
                 if(sd.sensorType == SensorDatum.GYRO
                         || sd.sensorType == SensorDatum.ACCEL
                         || sd.sensorType == SensorDatum.MAGNETIC
-                        || sd.sensorType == SensorDatum.GRAVITY
-                        || sd.sensorType == SensorDatum.DOF6)
+                        || sd.sensorType == SensorDatum.GRAVITY )
                 {
                     bb.put((byte) sd.sensorType)
                             .putLong(sd.timestamp)
@@ -213,11 +208,14 @@ public class CommunicationThread implements Runnable {
             }
         }
 
-        System.out.println("communication thread exited");
-        if(null!=socket) {
-            socket.close();
-            socket = null;
+        //System.out.println("communication thread exited");
+
+        for(int p : sockets.keySet())
+        {
+            sockets.get(p).close();
+            sockets.remove(p);
         }
+
         StateManager.update( (state) -> { state.clientsList = ""; return state; });
     }
 }

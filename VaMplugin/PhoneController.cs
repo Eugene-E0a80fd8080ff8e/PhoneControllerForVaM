@@ -6,6 +6,7 @@ using SimpleJSON;
 
 using System.Net.Sockets;
 using System.Threading;
+// :( using System.Collections.Concurrent; 
 using System.Collections;
 using System.Net;
 using System.Diagnostics;
@@ -63,10 +64,13 @@ namespace MVRPlugin
             IPEndPoint remoteIP = new IPEndPoint(IPAddress.Any, 0);
             IPEndPoint broadcastIP = new IPEndPoint(IPAddress.Broadcast, 62701);
 
+            //udpClient.ExclusiveAddressUse = false;
             udpClient.Client.ReceiveTimeout = 100; //ms
 
             int lastAnnounceTime = 0;
             byte[] bAnnounce = new byte[] { 0xff };
+
+            //bool terminateFlag = false;
 
             this.terminateReceivingThread = () =>
             {
@@ -126,6 +130,14 @@ namespace MVRPlugin
             try
             {
 
+                /*
+                {
+                    _azimuth = new JSONStorableFloat("Azimuth of Monitor", 215f, (angle) => { this.NORTH_DIRECTION = angle; } , 0f, 360f );
+                    RegisterFloat(_azimuth);
+                    CreateSlider(_azimuth, true);
+                }
+                */
+
                 fUiLastActive = Environment.TickCount;
 
                 if (null != terminateReceivingThread)
@@ -157,14 +169,14 @@ namespace MVRPlugin
         Int64 gyroPrevTimestamp = 0;
         private void processGyro(Int64 timestamp, byte accuracy, float XrotRate, float YrotRate, float ZrotRate)
         {
-            
-	    if( timestamp - gyroPrevTimestamp > 200000000) // 200ms
+            /*
+			if( timestamp - gyroPrevTimestamp > 100000000) // 100ms
             {
 				// time gap too long -- igronig data
 				gyroPrevTimestamp = timestamp;
 				return;
-	    }
-			
+			}
+			*/
 
             // gravity plane is a plane orthogonal to gravity vector
             Vector3 northOnGravityPlane = Vector3.ProjectOnPlane(magneticField, gravity);  // Projection of north to the gravity plane (phone's coordinates)

@@ -33,12 +33,18 @@
         <activity
             android:name=".AzimuthSetup"
             android:label="Azimuth Setup"
-            android:parentActivityName=".MainActivity"
-            >
+            android:parentActivityName=".MainActivity">
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value="local.movementtrackerforvam.movementtrackerforvam.MainActivity" />
-
+        </activity>
+        <activity
+            android:name=".ControllerSettings"
+            android:label="@string/title_activity_controller_settings"
+            android:parentActivityName=".MainActivity">
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value="MainActivity" />
         </activity>
     </application>
 

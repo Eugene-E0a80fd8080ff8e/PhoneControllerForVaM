@@ -4,8 +4,13 @@
 
     <header
         android:fragment="local.movementtrackerforvam.movementtrackerforvam.SettingsActivity$NetworkPreferenceFragment"
-        android:icon="@drawable/ic_info_black_24dp"
+        android:icon="@drawable/ic_network_check_black_24dp"
         android:title="@string/pref_header_network" />
+
+    <header
+        android:fragment="local.movementtrackerforvam.movementtrackerforvam.SettingsActivity$ControllerPreferenceFragment"
+        android:icon="@drawable/ic_settings_black_24dp"
+        android:title="Controller Settings" />
 
 <!--
     <header

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <SwitchPreference
+        android:defaultValue="false"
+        android:key="hold_or_toggle_switch"
+        android:summary="@string/hold_or_toggle_summary"
+        android:title="@string/hold_or_toggle_title" />
+
+    <SwitchPreference
+        android:defaultValue="false"
+        android:key="use_sweeps"
+        android:title="Use sweeps for movements"
+        android:summary="Note: sweeps don't work well due to accelerometer drift"
+        />
+
+</PreferenceScreen>

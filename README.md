@@ -1,7 +1,7 @@
 # PhoneControllerForVaM
-This you use your phone as a 3-DoF VR controller in Virt-a-Mate. 
+This plugin lets you use your phone as a 3-DoF VR controller in Virt-a-Mate. 
 You press a button on your phone to select a limb or the head.
-Then you rotate it in any of three directions.
+Then you rotate it in any directions with your phone.
 
 It also includes a 6-DoF attempt to move limbs around. This does not work very well due to accelerometer drift.
 You still can move limb with a swift moves though. Expirience may vary with phone.

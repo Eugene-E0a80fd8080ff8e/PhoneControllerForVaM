@@ -7,7 +7,7 @@ public final class SensorDatum {
     public static final byte GRAVITY = 3;
     public static final byte MAGNETIC = 4;
 
-    public static final byte DOF6 = 11;
+    // haven't found any phone which has this sensor.  public static final byte DOF6 = 11;
 
     public static final byte KEYS = 31;
 

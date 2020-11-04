@@ -37,8 +37,8 @@
 
     <string name="pref_title_network_freq">Update frequency</string>
     <string-array name="pref_network_freq_titles">
-        <item>30 Hz (default)</item>
-        <item>60 Hz</item>
+        <item>30 Hz</item>
+        <item>60 Hz (default)</item>
         <item>90 Hz</item>
         <item>120 Hz</item>
     </string-array>
@@ -121,4 +121,10 @@
     <string name="pref_ringtone_silent">Silent</string>
 
     <string name="pref_title_vibrate">Vibrate</string>
+    <string name="title_activity_controller_settings">Controller Settings</string>
+
+
+    <string name="hold_or_toggle_title">Hold vs toggle buttons</string>
+    <string name="hold_or_toggle_summary">You need to hold button to move joint</string>
+
 </resources>

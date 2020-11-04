@@ -169,10 +169,10 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
      */
     protected boolean isValidFragment(String fragmentName) {
         return PreferenceFragment.class.getName().equals(fragmentName)
-                || GeneralPreferenceFragment.class.getName().equals(fragmentName)
-                || DataSyncPreferenceFragment.class.getName().equals(fragmentName)
-                || NotificationPreferenceFragment.class.getName().equals(fragmentName)
-
+                //|| GeneralPreferenceFragment.class.getName().equals(fragmentName)
+                //|| DataSyncPreferenceFragment.class.getName().equals(fragmentName)
+                //|| NotificationPreferenceFragment.class.getName().equals(fragmentName)
+                || ControllerPreferenceFragment.class.getName().equals(fragmentName)
                 || NetworkPreferenceFragment.class.getName().equals(fragmentName)
                 ;
     }
@@ -181,6 +181,7 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
      * This fragment shows general preferences only. It is used when the
      * activity is showing a two-pane settings UI.
      */
+    /*
     @TargetApi(Build.VERSION_CODES.HONEYCOMB)
     public static class GeneralPreferenceFragment extends PreferenceFragment {
         @Override
@@ -205,6 +206,57 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
                 return true;
             }
             return super.onOptionsItemSelected(item);
+        }
+    }
+    */
+
+    @TargetApi(Build.VERSION_CODES.HONEYCOMB)
+    public static class ControllerPreferenceFragment extends PreferenceFragment implements Preference.OnPreferenceChangeListener{
+        @Override
+        public void onCreate(Bundle savedInstanceState) {
+            super.onCreate(savedInstanceState);
+            addPreferencesFromResource(R.xml.pref_controller);
+            setHasOptionsMenu(true);
+
+            Preference pref = findPreference("hold_or_toggle_switch");
+            pref.setOnPreferenceChangeListener(this);
+
+            this.onPreferenceChange(pref, PreferenceManager
+                    .getDefaultSharedPreferences(pref.getContext())
+                    .getBoolean("hold_or_toggle_switch",false) );
+
+            // Trigger the listener immediately with the preference's
+            // current value.
+            /*
+            sBindPreferenceSummaryToValueListener.onPreferenceChange(preference,
+                    PreferenceManager
+                            .getDefaultSharedPreferences(preference.getContext())
+                            .getString(preference.getKey(), ""));
+            */
+        }
+
+        @Override
+        public boolean onOptionsItemSelected(MenuItem item) {
+            int id = item.getItemId();
+            if (id == android.R.id.home) {
+                startActivity(new Intent(getActivity(), SettingsActivity.class));
+                return true;
+            }
+            return super.onOptionsItemSelected(item);
+        }
+
+        @Override
+        public boolean onPreferenceChange(Preference preference, Object newValue) {
+            if( "hold_or_toggle_switch".equals(preference.getKey()  ) )  {
+                boolean value = (boolean)newValue;
+                if (value) {
+                    preference.setSummary("Now buttons on main screen function as toggle buttons");
+                }else{
+                    preference.setSummary("Now you need to hold button to move joint");
+                }
+            }
+
+            return true;
         }
     }
 
@@ -242,6 +294,7 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
      * This fragment shows notification preferences only. It is used when the
      * activity is showing a two-pane settings UI.
      */
+    /*
     @TargetApi(Build.VERSION_CODES.HONEYCOMB)
     public static class NotificationPreferenceFragment extends PreferenceFragment {
         @Override
@@ -267,11 +320,13 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
             return super.onOptionsItemSelected(item);
         }
     }
+    */
 
     /**
      * This fragment shows data and sync preferences only. It is used when the
      * activity is showing a two-pane settings UI.
      */
+    /*
     @TargetApi(Build.VERSION_CODES.HONEYCOMB)
     public static class DataSyncPreferenceFragment extends PreferenceFragment {
         @Override
@@ -297,4 +352,6 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
             return super.onOptionsItemSelected(item);
         }
     }
+    */
+
 }

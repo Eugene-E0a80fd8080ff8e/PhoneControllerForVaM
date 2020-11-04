@@ -1,12 +1,13 @@
-
 package local.movementtrackerforvam.movementtrackerforvam;
 
+import android.app.Application;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.hardware.SensorManager;
+import android.preference.Preference;
 import android.preference.PreferenceManager;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -21,6 +22,8 @@ import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.util.TreeMap;
+
 public class MainActivity extends AppCompatActivity implements StateManager.StateListener
 ,SharedPreferences.OnSharedPreferenceChangeListener {
 
@@ -29,7 +32,7 @@ public class MainActivity extends AppCompatActivity implements StateManager.Stat
 
     private int buttonsPressed = 0;
 
-    ColorStateList csl_normal = null;
+    //ColorStateList csl_normal = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -63,7 +66,14 @@ public class MainActivity extends AppCompatActivity implements StateManager.Stat
         for(int q : buttons)
             ((Button)findViewById(q)).setOnTouchListener(btnTouch);
 
-        ((Switch)findViewById(R.id.switchMoveSweeps)).setOnCheckedChangeListener(switchListener);
+        {   //Sweeps switch
+
+            Switch sweepsSwitch = (Switch) findViewById(R.id.switchMoveSweeps);
+            SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(MyApplication.getAppContext());
+            boolean b_use_sweeps = sp.getBoolean("use_sweeps", false);
+            sweepsSwitch.setOnCheckedChangeListener(switchListener);
+            sweepsSwitch.setChecked(b_use_sweeps);
+        }
 
         {
             Context context = MyApplication.getAppContext();
@@ -217,35 +227,87 @@ public class MainActivity extends AppCompatActivity implements StateManager.Stat
             }
     }
 
+
+    private void updateButtonColors()
+    {
+        SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(MyApplication.getAppContext());
+        boolean bSweeps = sp.getBoolean("use_sweeps",false);
+        boolean bToggleMode = sp.getBoolean("hold_or_toggle_switch",false);
+
+        int [] colors =  { 0xffd8d8d8, 0xffFFB7C5, 0xffE098A6 };
+        for(int buttonId : button2bit.keySet())
+        {
+            int c=0;
+            if( 0 != (buttonsPressed & (1<<button2bit.get(buttonId)))) c++;
+            if(bSweeps && (
+                    buttonId == R.id.buttonEngageLHand
+                        || buttonId == R.id.buttonEngageRHand
+                        || buttonId == R.id.buttonEngageLFoot
+                        || buttonId == R.id.buttonEngageRFoot
+                    )) c++;
+
+            ((Button)findViewById(buttonId)).setBackgroundTintList(ColorStateList.valueOf( colors[c] ));
+        }
+
+    }
+
     private Switch.OnCheckedChangeListener switchListener = new Switch.OnCheckedChangeListener () {
         @Override
         public void onCheckedChanged(CompoundButton v, boolean isChecked) {
             Switch sw = (Switch)v;
             if( sw.getId() == R.id.switchMoveSweeps )
             {
+                {
+                    SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(MyApplication.getAppContext());
+                    sp.edit().putBoolean("use_sweeps",isChecked).apply();
+                }
+
+                /////////////////////////////////
                 if(isChecked) buttonsPressed|=1<<30;
                 else buttonsPressed&=~(1<<30);
                 sendKeyboardState();
 
                 //////////////////////
-                if(null == csl_normal)
-                    csl_normal = ((Button)findViewById(R.id.buttonEngageLHand)).getBackgroundTintList();
 
+                updateButtonColors();
+                /*
                 if(isChecked) {
-                    ((Button)findViewById(R.id.buttonEngageLHand)).setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#FFB7C5")));
-                    ((Button)findViewById(R.id.buttonEngageRHand)).setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#FFB7C5")));
-                    ((Button)findViewById(R.id.buttonEngageLFoot)).setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#FFB7C5")));
-                    ((Button)findViewById(R.id.buttonEngageRFoot)).setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#FFB7C5")));
+                    ((Button)findViewById(R.id.buttonEngageLHand)).setBackgroundTintList(MyApplication.getAppContext().getResources().getColorStateList(R.color.colorPink));
+                    ((Button)findViewById(R.id.buttonEngageRHand)).setBackgroundTintList(MyApplication.getAppContext().getResources().getColorStateList(R.color.colorPink));
+                    ((Button)findViewById(R.id.buttonEngageLFoot)).setBackgroundTintList(MyApplication.getAppContext().getResources().getColorStateList(R.color.colorPink));
+                    ((Button)findViewById(R.id.buttonEngageRFoot)).setBackgroundTintList(MyApplication.getAppContext().getResources().getColorStateList(R.color.colorPink));
                 }else{
                     ((Button)findViewById(R.id.buttonEngageLHand)).setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#d8d8d8")));
                     ((Button)findViewById(R.id.buttonEngageRHand)).setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#d8d8d8")));
                     ((Button)findViewById(R.id.buttonEngageLFoot)).setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#d8d8d8")));
                     ((Button)findViewById(R.id.buttonEngageRFoot)).setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#d8d8d8")));
-
                 }
+                */
             }
         }
     };
+
+    TreeMap<Integer, Integer> button2bit = new TreeMap<Integer, Integer>() {{
+        put(R.id.buttonEngageHead, 0);
+        put(R.id.buttonEngageNeck, 1);
+
+        put(R.id.buttonEngageLHand, 8);
+        put(R.id.buttonEngageRHand, 9);
+        put(R.id.buttonEngageLElbow, 10);
+        put(R.id.buttonEngageRElbow, 11);
+        put(R.id.buttonEngageLArm, 12);
+        put(R.id.buttonEngageRArm, 13);
+
+        put(R.id.buttonEngageChest, 17);
+        put(R.id.buttonEngageHip, 16);
+
+        put(R.id.buttonEngageLThigh, 28);
+        put(R.id.buttonEngageRThigh, 29);
+        put(R.id.buttonEngageLKnee, 26);
+        put(R.id.buttonEngageRKnee, 27);
+        put(R.id.buttonEngageLFoot, 24);
+        put(R.id.buttonEngageRFoot, 25);
+    }};
 
     private View.OnTouchListener btnTouch = new View.OnTouchListener() {
         @Override
@@ -254,67 +316,44 @@ public class MainActivity extends AppCompatActivity implements StateManager.Stat
             int action = event.getAction();
             if (action == MotionEvent.ACTION_DOWN)
             {
-                switch( b.getId() ) {
-                    case R.id.buttonEngageHead: buttonsPressed|=1; break;
-                    case R.id.buttonEngageNeck: buttonsPressed|=2; break;
+                if( button2bit.containsKey(b.getId()) )
+                {
+                    SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(MyApplication.getAppContext());
+                    boolean bToggleMode = sp.getBoolean("hold_or_toggle_switch",false);
 
-                    case R.id.buttonEngageLHand: buttonsPressed|=1<<8; break;
-                    case R.id.buttonEngageRHand: buttonsPressed|=1<<9; break;
-                    case R.id.buttonEngageLElbow: buttonsPressed|=1<<10; break;
-                    case R.id.buttonEngageRElbow: buttonsPressed|=1<<11; break;
-                    case R.id.buttonEngageLArm: buttonsPressed|=1<<12; break;
-                    case R.id.buttonEngageRArm: buttonsPressed|=1<<13; break;
+                    if( bToggleMode ) {
+                        buttonsPressed ^= 1 << button2bit.get(b.getId());
+                    }else {
+                        buttonsPressed |= 1 << button2bit.get(b.getId());
+                    }
 
-                    case R.id.buttonEngageChest: buttonsPressed|=1<<17; break;
-                    case R.id.buttonEngageHip: buttonsPressed|=1<<16; break;
-
-                    case R.id.buttonEngageLThigh: buttonsPressed|=1<<28; break;
-                    case R.id.buttonEngageRThigh: buttonsPressed|=1<<29; break;
-                    case R.id.buttonEngageLKnee: buttonsPressed|=1<<26; break;
-                    case R.id.buttonEngageRKnee: buttonsPressed|=1<<27; break;
-                    case R.id.buttonEngageLFoot: buttonsPressed|=1<<24; break;
-                    case R.id.buttonEngageRFoot: buttonsPressed|=1<<25; break;
+                    updateButtonColors();
+                    sendKeyboardState();
                 }
 
-                sendKeyboardState();
-
-                //System.out.println("flags : " + fHead + "," + fLHand + "," + fRHand + "," + fHip + "," + fLFoot + "," + fRFoot);
                 return true;
             }
             else
             if (action == MotionEvent.ACTION_UP) {
-                switch( b.getId() ) {
-                    case R.id.buttonEngageHead: buttonsPressed&=~1; break;
-                    case R.id.buttonEngageNeck: buttonsPressed&=~2; break;
+                if( button2bit.containsKey(b.getId()) )
+                {
+                    SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(MyApplication.getAppContext());
+                    boolean bToggleMode = sp.getBoolean("hold_or_toggle_switch",false);
+                    if( bToggleMode ) {
+                        // do nothing
+                    }else {
+                        buttonsPressed &= ~(1 << button2bit.get(b.getId()));
+                    }
 
-                    case R.id.buttonEngageLHand: buttonsPressed&=~(1<<8); break;
-                    case R.id.buttonEngageRHand: buttonsPressed&=~(1<<9); break;
-                    case R.id.buttonEngageLElbow: buttonsPressed&=~(1<<10); break;
-                    case R.id.buttonEngageRElbow: buttonsPressed&=~(1<<11); break;
-                    case R.id.buttonEngageLArm: buttonsPressed&=~(1<<12); break;
-                    case R.id.buttonEngageRArm: buttonsPressed&=~(1<<13); break;
-
-                    case R.id.buttonEngageChest: buttonsPressed&=~(1<<17); break;
-                    case R.id.buttonEngageHip: buttonsPressed&=~(1<<16); break;
-
-                    case R.id.buttonEngageLThigh: buttonsPressed&=~(1<<28); break;
-                    case R.id.buttonEngageRThigh: buttonsPressed&=~(1<<29); break;
-                    case R.id.buttonEngageLKnee: buttonsPressed&=~(1<<26); break;
-                    case R.id.buttonEngageRKnee: buttonsPressed&=~(1<<27); break;
-                    case R.id.buttonEngageLFoot: buttonsPressed&=~(1<<24); break;
-                    case R.id.buttonEngageRFoot: buttonsPressed&=~(1<<25); break;
+                    updateButtonColors();
+                    sendKeyboardState();
                 }
 
-                sendKeyboardState();
-
-                //System.out.println("flags : " + fHead + "," + fLHand + "," + fRHand + "," + fHip + "," + fLFoot + "," + fRFoot);
                 return true;
             }
 
             return false;   //  the listener has NOT consumed the event, pass it on
         }
-
-
     };
 
     private void updateAzimuthMessage()

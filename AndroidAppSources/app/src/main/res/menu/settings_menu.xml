@@ -3,17 +3,15 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <item android:id="@+id/invoke_settings_page"
-        android:icon="@drawable/ic_settings_black_24dp"
+        android:icon="@drawable/ic_settings_white_24dp"
         android:title="Settings"
         app:showAsAction="always"
 
-
-        android:visible="false"
+        android:visible="true"
         />
 
-
     <item android:id="@+id/invoke_azimuth_setup_page"
-        android:icon="@drawable/ic_settings_black_24dp"
+        android:icon="@drawable/ic_computer_white_24dp"
         android:title="Setup"
         app:showAsAction="always"
         />
