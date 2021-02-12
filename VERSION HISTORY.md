@@ -1,5 +1,10 @@
 # Version History
 
+## v0.3
+
+- VaM plugin is made compatible with VaM version 1.20.77.7
+- PhoneController is now a proper controller for AcidBubbles' Timeline plugin. Works you might expect, convinient.
+
 ## v0.2
 Added:
 

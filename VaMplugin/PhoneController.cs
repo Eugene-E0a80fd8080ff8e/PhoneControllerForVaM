@@ -12,6 +12,7 @@ using System.Net;
 using System.Diagnostics;
 using System.IO;
 using Leap;
+using System.Text;
 
 namespace MVRPlugin
 {
@@ -81,6 +82,8 @@ namespace MVRPlugin
                 thread = null;
             };
 
+            //d("entry");
+
             while (!terminateFlag)
             {
                 Byte[] data = null;
@@ -90,6 +93,8 @@ namespace MVRPlugin
                 }
                 catch (SocketException se)
                 { /* probably timeout */ }
+
+                //d($"received : {null == data}");
 
                 if (null != data)
                 {
@@ -102,13 +107,14 @@ namespace MVRPlugin
                     }
                 }
 
-                if (lastAnnounceTime + 300 < Environment.TickCount)
+                if (lastAnnounceTime + 300 < TickCount)
                 {
                     udpClient.Send(bAnnounce, 1, broadcastIP);
-                    lastAnnounceTime = Environment.TickCount;
+                    //d($"announce sent");
+                    lastAnnounceTime = TickCount;
                 }
 
-                if (fUiLastActive + 1000 < Environment.TickCount)
+                if (fUiLastActive + 1000 < TickCount)
                 {
                     // need to terminate if got disconneected from UI thread events (i.e. plugin unloaded)
                     SuperController.LogError($"term FMDFHGBDR");
@@ -138,7 +144,7 @@ namespace MVRPlugin
                 }
                 */
 
-                fUiLastActive = Environment.TickCount;
+                fUiLastActive = TickCount;
 
                 if (null != terminateReceivingThread)
                     terminateReceivingThread();
@@ -158,7 +164,7 @@ namespace MVRPlugin
         {
             try
             {
-                fUiLastActive = Environment.TickCount;
+                fUiLastActive = TickCount;
             }
             catch (Exception e)
             {
@@ -274,43 +280,45 @@ namespace MVRPlugin
                 if (0 != (keysPressed & 1)) // head
                 {
                     FreeControllerV3 control = (FreeControllerV3)containingAtom.GetStorableByID("headControl");
-                    control.transform.rotation = worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * control.transform.rotation);
+                    control.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * control.transform.rotation));
+
                 }
+
                 if (0 != (keysPressed & 2)) // neck
                 {
                     FreeControllerV3 head = (FreeControllerV3)containingAtom.GetStorableByID("headControl");
                     FreeControllerV3 neck = (FreeControllerV3)containingAtom.GetStorableByID("neckControl");
-                    neck.transform.rotation = worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * neck.transform.rotation);
+                    neck.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * neck.transform.rotation));
                     head.transform.position = neck.transform.position + worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * (head.transform.position - neck.transform.position));
-                    head.transform.rotation = worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * head.transform.rotation);
+                    head.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * head.transform.rotation));
                 }
 
                 if (0 != (keysPressed & (1 << 8))) // lHand
                 {
                     FreeControllerV3 control = (FreeControllerV3)containingAtom.GetStorableByID("lHandControl");
-                    control.transform.rotation = worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * control.transform.rotation);
+                    control.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * control.transform.rotation));
                 }
                 if (0 != (keysPressed & (1 << 9))) // rHand
                 {
                     FreeControllerV3 control = (FreeControllerV3)containingAtom.GetStorableByID("rHandControl");
-                    control.transform.rotation = worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * control.transform.rotation);
+                    control.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * control.transform.rotation));
                 }
 
                 if (0 != (keysPressed & (1 << 10))) // lElbow
                 {
                     FreeControllerV3 elbow = (FreeControllerV3)containingAtom.GetStorableByID("lElbowControl");
                     FreeControllerV3 hand = (FreeControllerV3)containingAtom.GetStorableByID("lHandControl");
-                    elbow.transform.rotation = worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * elbow.transform.rotation);
+                    elbow.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * elbow.transform.rotation));
                     hand.transform.position = elbow.transform.position + worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * (hand.transform.position - elbow.transform.position));
-                    hand.transform.rotation = worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * hand.transform.rotation);
+                    hand.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * hand.transform.rotation));
                 }
                 if (0 != (keysPressed & (1 << 11))) // rElbow
                 {
                     FreeControllerV3 elbow = (FreeControllerV3)containingAtom.GetStorableByID("rElbowControl");
                     FreeControllerV3 hand = (FreeControllerV3)containingAtom.GetStorableByID("rHandControl");
-                    elbow.transform.rotation = worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * elbow.transform.rotation);
+                    elbow.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * elbow.transform.rotation));
                     hand.transform.position = elbow.transform.position + worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * (hand.transform.position - elbow.transform.position));
-                    hand.transform.rotation = worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * hand.transform.rotation);
+                    hand.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * hand.transform.rotation));
                 }
 
                 if (0 != (keysPressed & (1 << 12))) // lArm
@@ -318,34 +326,34 @@ namespace MVRPlugin
                     FreeControllerV3 arm = (FreeControllerV3)containingAtom.GetStorableByID("lArmControl");
                     FreeControllerV3 elbow = (FreeControllerV3)containingAtom.GetStorableByID("lElbowControl");
                     FreeControllerV3 hand = (FreeControllerV3)containingAtom.GetStorableByID("lHandControl");
-                    arm.transform.rotation = worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * arm.transform.rotation);
+                    arm.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * arm.transform.rotation));
                     elbow.transform.position = arm.transform.position + worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * (elbow.transform.position - arm.transform.position));
-                    elbow.transform.rotation = worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * elbow.transform.rotation);
+                    elbow.RotateTo( worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * elbow.transform.rotation));
                     hand.transform.position = arm.transform.position + worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * (hand.transform.position - arm.transform.position));
-                    hand.transform.rotation = worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * hand.transform.rotation);
+                    hand.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * hand.transform.rotation));
                 }
                 if (0 != (keysPressed & (1 << 13))) // lArm
                 {
                     FreeControllerV3 arm = (FreeControllerV3)containingAtom.GetStorableByID("rArmControl");
                     FreeControllerV3 elbow = (FreeControllerV3)containingAtom.GetStorableByID("rElbowControl");
                     FreeControllerV3 hand = (FreeControllerV3)containingAtom.GetStorableByID("rHandControl");
-                    arm.transform.rotation = worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * arm.transform.rotation);
+                    arm.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * arm.transform.rotation));
                     elbow.transform.position = arm.transform.position + worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * (elbow.transform.position - arm.transform.position));
-                    elbow.transform.rotation = worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * elbow.transform.rotation);
+                    elbow.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * elbow.transform.rotation));
                     hand.transform.position = arm.transform.position + worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * (hand.transform.position - arm.transform.position));
-                    hand.transform.rotation = worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * hand.transform.rotation);
+                    hand.RotateTo( worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * hand.transform.rotation));
                 }
 
 
                 if (0 != (keysPressed & (1 << 16))) // hip
                 {
                     FreeControllerV3 control = (FreeControllerV3)containingAtom.GetStorableByID("hipControl");
-                    control.transform.rotation = worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * control.transform.rotation);
+                    control.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * control.transform.rotation));
                 }
                 if (0 != (keysPressed & (1 << 17))) // chest
                 {
                     FreeControllerV3 chest = (FreeControllerV3)containingAtom.GetStorableByID("chestControl");
-                    chest.transform.rotation = worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * chest.transform.rotation);
+                    chest.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * chest.transform.rotation));
 
                     string[] arr = new string[] {
                         "lArmControl","lElbowControl","lHandControl",
@@ -358,7 +366,7 @@ namespace MVRPlugin
                     {
                         FreeControllerV3 fc = (FreeControllerV3)containingAtom.GetStorableByID(t);
                         fc.transform.position = chest.transform.position + worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * (fc.transform.position - chest.transform.position));
-                        fc.transform.rotation = worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * fc.transform.rotation);
+                        fc.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * fc.transform.rotation));
                     }
 
                 }
@@ -366,50 +374,50 @@ namespace MVRPlugin
                 if (0 != (keysPressed & (1 << 24))) // lFoot
                 {
                     FreeControllerV3 control = (FreeControllerV3)containingAtom.GetStorableByID("lFootControl");
-                    control.transform.rotation = worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * control.transform.rotation);
+                    control.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * control.transform.rotation));
                 }
                 if (0 != (keysPressed & (1 << 25))) // rFoot
                 {
                     FreeControllerV3 control = (FreeControllerV3)containingAtom.GetStorableByID("rFootControl");
-                    control.transform.rotation = worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * control.transform.rotation);
+                    control.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * control.transform.rotation));
                 }
                 if (0 != (keysPressed & (1 << 26))) // lKnee
                 {
                     FreeControllerV3 knee = (FreeControllerV3)containingAtom.GetStorableByID("lKneeControl");
                     FreeControllerV3 foot = (FreeControllerV3)containingAtom.GetStorableByID("lFootControl");
-                    knee.transform.rotation = worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * knee.transform.rotation);
+                    knee.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * knee.transform.rotation));
                     foot.transform.position = knee.transform.position + worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * (foot.transform.position - knee.transform.position));
-                    foot.transform.rotation = worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * foot.transform.rotation);
+                    foot.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * foot.transform.rotation));
                 }
                 if (0 != (keysPressed & (1 << 27))) // rKnee
                 {
                     FreeControllerV3 knee = (FreeControllerV3)containingAtom.GetStorableByID("rKneeControl");
                     FreeControllerV3 foot = (FreeControllerV3)containingAtom.GetStorableByID("rFootControl");
-                    knee.transform.rotation = worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * knee.transform.rotation);
+                    knee.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * knee.transform.rotation));
                     foot.transform.position = knee.transform.position + worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * (foot.transform.position - knee.transform.position));
-                    foot.transform.rotation = worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * foot.transform.rotation);
+                    foot.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * foot.transform.rotation));
                 }
                 if (0 != (keysPressed & (1 << 28))) // lThigh
                 {
                     FreeControllerV3 thigh = (FreeControllerV3)containingAtom.GetStorableByID("lThighControl");
                     FreeControllerV3 knee = (FreeControllerV3)containingAtom.GetStorableByID("lKneeControl");
                     FreeControllerV3 foot = (FreeControllerV3)containingAtom.GetStorableByID("lFootControl");
-                    thigh.transform.rotation = worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * thigh.transform.rotation);
+                    thigh.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * thigh.transform.rotation));
                     knee.transform.position = thigh.transform.position + worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * (knee.transform.position - thigh.transform.position));
-                    knee.transform.rotation = worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * knee.transform.rotation);
+                    knee.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * knee.transform.rotation));
                     foot.transform.position = thigh.transform.position + worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * (foot.transform.position - thigh.transform.position));
-                    foot.transform.rotation = worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * foot.transform.rotation);
+                    foot.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * foot.transform.rotation));
                 }
                 if (0 != (keysPressed & (1 << 29))) // rThigh
                 {
                     FreeControllerV3 thigh = (FreeControllerV3)containingAtom.GetStorableByID("rThighControl");
                     FreeControllerV3 knee = (FreeControllerV3)containingAtom.GetStorableByID("rKneeControl");
                     FreeControllerV3 foot = (FreeControllerV3)containingAtom.GetStorableByID("rFootControl");
-                    thigh.transform.rotation = worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * thigh.transform.rotation);
+                    thigh.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * thigh.transform.rotation));
                     knee.transform.position = thigh.transform.position + worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * (knee.transform.position - thigh.transform.position));
-                    knee.transform.rotation = worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * knee.transform.rotation);
+                    knee.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * knee.transform.rotation));
                     foot.transform.position = thigh.transform.position + worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * (foot.transform.position - thigh.transform.position));
-                    foot.transform.rotation = worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * foot.transform.rotation);
+                    foot.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * foot.transform.rotation));
                 }
 
             }
@@ -673,7 +681,7 @@ namespace MVRPlugin
         // Update is called with each rendered frame by Unity
         void Update()
         {
-            fUiLastActive = Environment.TickCount;
+            fUiLastActive = TickCount;
 
             try
             {
@@ -722,6 +730,48 @@ namespace MVRPlugin
             SuperController.LogError($"OnDestroy");
             if (null != this.terminateReceivingThread)
                 this.terminateReceivingThread();
+        }
+
+
+        #region UDP messages for debugging
+        /*
+        // this is just for debuging. Not related to other UDP activities
+        // should be disabled upon release
+        static private UdpClient __d_udpClient = null;
+        public static void d(string str)
+        {
+
+
+            if (null == __d_udpClient)
+            {
+                try
+                {
+                    __d_udpClient = new UdpClient();
+                }
+                catch (Exception e)
+                {
+                }
+            }
+            IPEndPoint remoteIP = new IPEndPoint(IPAddress.Parse("192.168.1.11"), 65533);
+            byte[] b = ASCIIEncoding.ASCII.GetBytes(str);
+
+            __d_udpClient.Send(b, b.Length, remoteIP);
+
+            // tcpdump -Aqnn udp port 65533
+            // or, nicer:
+            // unbuffer tcpdump -Aqnn udp port 65533 | stdbuf -o0 grep -v '192.168' | cut -b 29-
+        }
+        */
+        #endregion
+
+
+        private static long tickstart = -1;
+        static public int TickCount {
+        	get {
+        		long t = System.DateTime.Now.Ticks;
+        		if(tickstart == -1) tickstart=t;
+        		return (int)((t-tickstart)/10000);
+        	}
         }
 
     }
