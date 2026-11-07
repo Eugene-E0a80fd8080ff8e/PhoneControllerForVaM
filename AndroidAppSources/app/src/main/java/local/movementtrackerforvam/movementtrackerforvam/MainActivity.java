@@ -39,6 +39,24 @@ public class MainActivity extends AppCompatActivity implements StateManager.Stat
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        // Older AppCompat versions can lay content underneath the action bar on
+        // edge-to-edge Android. Only add space when the two actually overlap.
+        View content = findViewById(R.id.controllerScroll);
+        View actionBar = findViewById(android.support.v7.appcompat.R.id.action_bar_container);
+        if (actionBar != null) {
+            content.getViewTreeObserver().addOnGlobalLayoutListener(() -> {
+                int[] contentPosition = new int[2];
+                int[] barPosition = new int[2];
+                content.getLocationInWindow(contentPosition);
+                actionBar.getLocationInWindow(barPosition);
+                int top = Math.max(0, barPosition[1] + actionBar.getHeight() - contentPosition[1]);
+                if (content.getPaddingTop() != top) {
+                    content.setPadding(content.getPaddingLeft(), top,
+                            content.getPaddingRight(), content.getPaddingBottom());
+                }
+            });
+        }
+
         ////////////////
 
         int[] buttons = new int[] {

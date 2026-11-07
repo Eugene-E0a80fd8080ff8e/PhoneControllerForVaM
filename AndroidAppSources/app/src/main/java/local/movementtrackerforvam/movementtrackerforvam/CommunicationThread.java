@@ -177,9 +177,11 @@ public class CommunicationThread implements Runnable {
             try{
                 DatagramPacket dp = new DatagramPacket(receiveBuffer ,0,1024);
                 getSocket().receive(dp);
-                String ia = dp.getAddress().getHostAddress();
-                clients_lastSeen.put(ia, System.currentTimeMillis());
-                updateClients();
+                if (dp.getLength() == 1 && dp.getData()[dp.getOffset()] == (byte) 0xff) {
+                    String ia = dp.getAddress().getHostAddress();
+                    clients_lastSeen.put(ia, System.currentTimeMillis());
+                    updateClients();
+                }
             }catch(IOException e) {}
 
             {
