@@ -343,10 +343,10 @@
 
     <!--  **************************** -->
     <Switch
-        android:id="@+id/switchMoveSweeps"
+        android:id="@+id/switchPositionTracking"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Use sweeps\nfor\nmovements"
+        android:text="Position\ntracking"
         android:gravity="center"
         android:checked="false"
 

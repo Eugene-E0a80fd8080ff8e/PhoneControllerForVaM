@@ -12,7 +12,6 @@ public class SensorThread {
 
     private static SensorManager sensorManager;
     private static Sensor gyroscopeSensor;
-    private static Sensor accelSensor;
     private static Sensor magneticSensor;
     private static Sensor gravitySensor;
 
@@ -36,26 +35,6 @@ public class SensorThread {
         @Override
         public void onAccuracyChanged(Sensor sensor, int accuracy) {
             StateManager.update( state -> { state.gyroscopeCalibration=accuracy; return state; } );
-
-        }
-    };
-
-    private SensorEventListener accelSensorEventListener = new SensorEventListener() {
-
-        @Override
-        public void onSensorChanged(SensorEvent event) {
-            SensorDatum sd = new SensorDatum();
-            sd.sensorType = SensorDatum.ACCEL;
-            sd.accuracy = (byte)event.accuracy;
-            sd.timestamp = event.timestamp;
-            sd.data = event.values.clone();
-
-            MyApplication.sensorDataPipe.add(sd);
-        }
-
-        @Override
-        public void onAccuracyChanged(Sensor sensor, int accuracy) {
-            StateManager.update( state -> { state.accelerometerCalibration=accuracy; return state; } );
 
         }
     };
@@ -112,10 +91,6 @@ public class SensorThread {
             gyroscopeSensor = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
         }
 
-        if(null == accelSensor) {
-            accelSensor = sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
-        }
-
         if(null == magneticSensor) {
             magneticSensor = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
         }
@@ -130,12 +105,6 @@ public class SensorThread {
 
         sensorManager.registerListener(gyroscopeSensorEventListener,
                 gyroscopeSensor,
-                SensorManager.SENSOR_DELAY_FASTEST,
-                handler
-        );
-
-        sensorManager.registerListener(accelSensorEventListener,
-                accelSensor,
                 SensorManager.SENSOR_DELAY_FASTEST,
                 handler
         );
@@ -157,7 +126,6 @@ public class SensorThread {
     {
         if(sensorManager != null) {
             sensorManager.unregisterListener(gyroscopeSensorEventListener);
-            sensorManager.unregisterListener(accelSensorEventListener);
             sensorManager.unregisterListener(gravitySensorEventListener);
             sensorManager.unregisterListener(magneticSensorEventListener);
         }

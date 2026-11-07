@@ -3,14 +3,13 @@ This plugin lets you use your phone as a 3-DoF VR controller in Virt-a-Mate.
 You press a button on your phone to select a limb or the head.
 Then you rotate it in any directions with your phone.
 
-It also includes a 6-DoF attempt to move limbs around. This does not work very well due to accelerometer drift.
-You still can move limb with a swift moves though. Expirience may vary with phone.
+Optional position tracking uses ARCore and the phone camera to move hands and feet. Rotation remains available without ARCore.
 
 <img src="images/Screenshot_20200731-194202.png" width="33%">
 
 # Prerequisites
 
-1. An **Android phone**. I designed the app to be compatible with Android 5.0+ , although I only tested it on Android 7.1.1 .
+1. An **Android phone** running Android 7.0 or later. Position tracking additionally requires an ARCore-supported device.
 
 2. A local network (**Wi-Fi**), to which both phone and computer should be connected. 
 Network should be configured in a way that phone and computer could see each other. 
@@ -78,17 +77,16 @@ select the previously downloaded file.
 
 ### Usage
 
-Keep **use sweeps for movement** off for a start. It does not work very well yet.
+With position tracking off, press and hold a body-part button and rotate the phone to rotate that control. Toggle mode is available in controller settings.
 
-Press and hold a button and then tilt your phone to any direction. 
-The model on the screen should move respective limb according to your movement.
+To move a hand or foot in position as well:
 
-You can press more than two buttons at once.
+1. Install the current Android app and the matching updated VaM plugin.
+2. Enable **Position tracking**, grant camera access, and install or update Google Play Services for AR if prompted. This requires an ARCore-supported phone, Android 7 or newer, and a well-lit, visually detailed environment.
+3. Wait for **Position: tracking**. Point the phone toward the monitor as in the direction setup, then press and hold a hand or foot button and move the phone. Release and press again to start from a new reference. Rotation remains active.
+4. If tracking is lost, release the button and wait for tracking to recover before pressing again. Position updates also stop when the app is backgrounded or the connection times out.
 
-When **use sweeps for movement** is turned on, only four buttons change its function: lHand, rHand, lFoot, rFoot.
-If you keep a button pressed for too long, you will see how your accelerometer drifts. 
-This leaves only one usage for this movements: hold the button, move the phone swiftly to a new position, then release the button.
-This might be improved in future releases when I would use Android's SENSOR_6DOF or Google's AR Core.
+ARCore uses the camera on the phone; camera images are not sent to VaM. Tracking may drift or stop when the view is dark, featureless, covered, or moving too quickly. Monitor alignment and movement directions should be checked in the intended setup before use.
 
 A configuration with more than one server or more than one client per local network was considered during development but was never tested.
 

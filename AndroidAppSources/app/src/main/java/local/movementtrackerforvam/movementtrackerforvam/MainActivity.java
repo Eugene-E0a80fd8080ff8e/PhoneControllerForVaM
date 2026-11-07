@@ -1,5 +1,10 @@
 package local.movementtrackerforvam.movementtrackerforvam;
 
+import android.Manifest;
+import android.content.pm.PackageManager;
+import com.google.ar.core.ArCoreApk;
+import com.google.ar.core.Config;
+import com.google.ar.core.Session;
 import android.app.Application;
 import android.content.Context;
 import android.content.Intent;
@@ -31,6 +36,11 @@ public class MainActivity extends AppCompatActivity implements StateManager.Stat
     CommunicationThread communication = null;
 
     private int buttonsPressed = 0;
+    private PositionTracker positionTracker;
+    private boolean positionRequested;
+    private boolean installRequested;
+    private boolean activityResumed;
+    private static final int CAMERA_PERMISSION = 41;
 
     //ColorStateList csl_normal = null;
 
@@ -84,14 +94,16 @@ public class MainActivity extends AppCompatActivity implements StateManager.Stat
         for(int q : buttons)
             ((Button)findViewById(q)).setOnTouchListener(btnTouch);
 
-        {   //Sweeps switch
-
-            Switch sweepsSwitch = (Switch) findViewById(R.id.switchMoveSweeps);
-            SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(MyApplication.getAppContext());
-            boolean b_use_sweeps = sp.getBoolean("use_sweeps", false);
-            sweepsSwitch.setOnCheckedChangeListener(switchListener);
-            sweepsSwitch.setChecked(b_use_sweeps);
-        }
+        Switch positionSwitch = findViewById(R.id.switchPositionTracking);
+        positionSwitch.setOnCheckedChangeListener((button, enabled) -> {
+            positionRequested = enabled;
+            if (enabled) {
+                Toast.makeText(this, "Position tracking requires the updated VaM plugin", Toast.LENGTH_LONG).show();
+                startPositionTracking();
+            }
+            else stopPositionTracking();
+            updateButtonColors();
+        });
 
         {
             Context context = MyApplication.getAppContext();
@@ -180,15 +192,6 @@ public class MainActivity extends AppCompatActivity implements StateManager.Stat
                 tv.setVisibility(View.VISIBLE);
             });
         }
-        else if(state.accelerometerCalibration != SensorManager.SENSOR_STATUS_ACCURACY_HIGH)
-        {
-            String s = "Accelerometer is not calibrated " + state.accelerometerCalibration + "/3";
-            this.runOnUiThread( () -> {
-                TextView tv = (TextView)findViewById(R.id.sensorStatusText);
-                tv.setText(s);
-                tv.setVisibility(View.VISIBLE);
-            });
-        }
         else if(state.gyroscopeCalibration != SensorManager.SENSOR_STATUS_ACCURACY_HIGH)
         {
             String s = "Gyroscope is not calibrated " + state.gyroscopeCalibration + "/3";
@@ -246,64 +249,84 @@ public class MainActivity extends AppCompatActivity implements StateManager.Stat
     }
 
 
-    private void updateButtonColors()
-    {
-        SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(MyApplication.getAppContext());
-        boolean bSweeps = sp.getBoolean("use_sweeps",false);
-        boolean bToggleMode = sp.getBoolean("hold_or_toggle_switch",false);
-
-        int [] colors =  { 0xffd8d8d8, 0xffFFB7C5, 0xffE098A6 };
-        for(int buttonId : button2bit.keySet())
-        {
-            int c=0;
-            if( 0 != (buttonsPressed & (1<<button2bit.get(buttonId)))) c++;
-            if(bSweeps && (
-                    buttonId == R.id.buttonEngageLHand
-                        || buttonId == R.id.buttonEngageRHand
-                        || buttonId == R.id.buttonEngageLFoot
-                        || buttonId == R.id.buttonEngageRFoot
-                    )) c++;
-
-            ((Button)findViewById(buttonId)).setBackgroundTintList(ColorStateList.valueOf( colors[c] ));
+    private void updateButtonColors() {
+        for (int buttonId : button2bit.keySet()) {
+            int color = (buttonsPressed & (1 << button2bit.get(buttonId))) != 0 ? 0xffFFB7C5 : 0xffd8d8d8;
+            ((Button) findViewById(buttonId)).setBackgroundTintList(ColorStateList.valueOf(color));
         }
-
     }
 
-    private Switch.OnCheckedChangeListener switchListener = new Switch.OnCheckedChangeListener () {
-        @Override
-        public void onCheckedChanged(CompoundButton v, boolean isChecked) {
-            Switch sw = (Switch)v;
-            if( sw.getId() == R.id.switchMoveSweeps )
-            {
-                {
-                    SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(MyApplication.getAppContext());
-                    sp.edit().putBoolean("use_sweeps",isChecked).apply();
-                }
+    @Override protected void onResume() {
+        super.onResume();
+        activityResumed = true;
+        if (positionRequested) startPositionTracking();
+    }
 
-                /////////////////////////////////
-                if(isChecked) buttonsPressed|=1<<30;
-                else buttonsPressed&=~(1<<30);
-                sendKeyboardState();
+    @Override protected void onPause() {
+        activityResumed = false;
+        stopPositionTracking();
+        super.onPause();
+    }
 
-                //////////////////////
+    private void positionStatus(String message) {
+        runOnUiThread(() -> ((Switch) findViewById(R.id.switchPositionTracking)).setText(message));
+    }
 
-                updateButtonColors();
-                /*
-                if(isChecked) {
-                    ((Button)findViewById(R.id.buttonEngageLHand)).setBackgroundTintList(MyApplication.getAppContext().getResources().getColorStateList(R.color.colorPink));
-                    ((Button)findViewById(R.id.buttonEngageRHand)).setBackgroundTintList(MyApplication.getAppContext().getResources().getColorStateList(R.color.colorPink));
-                    ((Button)findViewById(R.id.buttonEngageLFoot)).setBackgroundTintList(MyApplication.getAppContext().getResources().getColorStateList(R.color.colorPink));
-                    ((Button)findViewById(R.id.buttonEngageRFoot)).setBackgroundTintList(MyApplication.getAppContext().getResources().getColorStateList(R.color.colorPink));
-                }else{
-                    ((Button)findViewById(R.id.buttonEngageLHand)).setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#d8d8d8")));
-                    ((Button)findViewById(R.id.buttonEngageRHand)).setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#d8d8d8")));
-                    ((Button)findViewById(R.id.buttonEngageLFoot)).setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#d8d8d8")));
-                    ((Button)findViewById(R.id.buttonEngageRFoot)).setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#d8d8d8")));
-                }
-                */
+    private void stopPositionTracking() {
+        PositionTracker.sample = null;
+        if (positionTracker != null) {
+            positionTracker.stop();
+            positionTracker = null;
+        }
+        positionStatus("Position tracking");
+    }
+
+    private void startPositionTracking() {
+        if (!activityResumed || !positionRequested || positionTracker != null) return;
+        positionStatus("Position: starting");
+        ArCoreApk.Availability availability = ArCoreApk.getInstance().checkAvailability(this);
+        if (availability.isTransient()) {
+            new android.os.Handler(getMainLooper()).postDelayed(this::startPositionTracking, 300);
+            return;
+        }
+        if (!availability.isSupported()) {
+            positionStatus("Position: device unsupported");
+            return;
+        }
+        if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.CAMERA}, CAMERA_PERMISSION);
+            return;
+        }
+        Session session = null;
+        try {
+            if (ArCoreApk.getInstance().requestInstall(this, !installRequested) == ArCoreApk.InstallStatus.INSTALL_REQUESTED) {
+                installRequested = true;
+                return;
+            }
+            session = new Session(this);
+            Config config = session.getConfig();
+            config.setPlaneFindingMode(Config.PlaneFindingMode.DISABLED);
+            config.setUpdateMode(Config.UpdateMode.LATEST_CAMERA_IMAGE);
+            session.configure(config);
+            session.resume();
+            positionTracker = new PositionTracker(session, this::positionStatus);
+            positionTracker.start();
+        } catch (Exception e) {
+            if (session != null) session.close();
+            positionStatus("Position unavailable: " + e.getClass().getSimpleName());
+        }
+    }
+
+    @Override public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
+        super.onRequestPermissionsResult(requestCode, permissions, results);
+        if (requestCode == CAMERA_PERMISSION) {
+            if (results.length > 0 && results[0] == PackageManager.PERMISSION_GRANTED) startPositionTracking();
+            else {
+                ((Switch) findViewById(R.id.switchPositionTracking)).setChecked(false);
+                Toast.makeText(this, "Camera permission is required for position tracking", Toast.LENGTH_LONG).show();
             }
         }
-    };
+    }
 
     TreeMap<Integer, Integer> button2bit = new TreeMap<Integer, Integer>() {{
         put(R.id.buttonEngageHead, 0);
@@ -352,7 +375,7 @@ public class MainActivity extends AppCompatActivity implements StateManager.Stat
                 return true;
             }
             else
-            if (action == MotionEvent.ACTION_UP) {
+            if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
                 if( button2bit.containsKey(b.getId()) )
                 {
                     SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(MyApplication.getAppContext());

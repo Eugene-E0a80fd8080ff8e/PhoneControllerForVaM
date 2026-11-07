@@ -8,7 +8,6 @@ public final class State implements Cloneable {
 
     //public boolean isTransmissionOn = false;
 
-    public int accelerometerCalibration = -1;
     public int magnetometerCalibration = -1;
     public int gyroscopeCalibration = -1;
 
@@ -20,8 +19,7 @@ public final class State implements Cloneable {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         State state = (State) o;
-        return accelerometerCalibration == state.accelerometerCalibration &&
-                magnetometerCalibration == state.magnetometerCalibration &&
+        return magnetometerCalibration == state.magnetometerCalibration &&
                 gyroscopeCalibration == state.gyroscopeCalibration &&
                 Objects.equals(clientsList, state.clientsList);
     }
@@ -29,7 +27,7 @@ public final class State implements Cloneable {
     @Override
     public int hashCode() {
 
-        return Objects.hash(accelerometerCalibration, magnetometerCalibration, gyroscopeCalibration, clientsList);
+        return Objects.hash(magnetometerCalibration, gyroscopeCalibration, clientsList);
     }
 
     public State getClone()

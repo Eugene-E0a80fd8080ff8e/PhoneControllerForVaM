@@ -30,7 +30,9 @@ namespace MVRPlugin
         private Queue dataChannel = new Queue();
         private Thread thread;
         private volatile bool terminateFlag = false;
-        private volatile Action terminateReceivingThread = null;
+        private readonly object socketLock = new object();
+        private UdpClient receivingSocket;
+        private volatile string receiverError;
 
         private int keysPressed = 0; // bitmask: 0-head, 8-lHand, 9-rHand, 16-hip, 24-lFoot, 25-rFoot
         private Vector3 magneticField = Vector3.zero;
@@ -44,87 +46,100 @@ namespace MVRPlugin
 
         private Quaternion? prevWorldRot = null;
 
-        private volatile int fUiLastActive = 0;
+        // Never wait for the receiver from Unity's UI thread, or from the
+        // receiver itself. Closing its socket wakes a pending Receive call.
+        private void StopReceiver()
+        {
+            terminateFlag = true;
+            UdpClient socket;
+            lock (socketLock)
+            {
+                socket = receivingSocket;
+                receivingSocket = null;
+            }
+            if (socket != null) socket.Close();
+        }
 
         public void TrFunc()
         {
             UdpClient udpClient = null;
-            do
+            bool bindErrorReported = false;
+            try
             {
-                try
+                while (!terminateFlag && udpClient == null)
                 {
-                    udpClient = new UdpClient(62701);
-                }
-                catch (Exception e)
-                {
-                    SuperController.LogError("" + e);
-                    Thread.Sleep(1000);
-                }
-            } while (udpClient == null);
-
-            IPEndPoint remoteIP = new IPEndPoint(IPAddress.Any, 0);
-            IPEndPoint broadcastIP = new IPEndPoint(IPAddress.Broadcast, 62701);
-
-            //udpClient.ExclusiveAddressUse = false;
-            udpClient.Client.ReceiveTimeout = 100; //ms
-
-            int lastAnnounceTime = 0;
-            byte[] bAnnounce = new byte[] { 0xff };
-
-            //bool terminateFlag = false;
-
-            this.terminateReceivingThread = () =>
-            {
-                terminateFlag = true;
-                udpClient.Close();
-                thread.Join();
-                this.terminateReceivingThread = null;
-                thread = null;
-            };
-
-            //d("entry");
-
-            while (!terminateFlag)
-            {
-                Byte[] data = null;
-                try
-                {
-                    data = udpClient.Receive(ref remoteIP);
-                }
-                catch (SocketException se)
-                { /* probably timeout */ }
-
-                //d($"received : {null == data}");
-
-                if (null != data)
-                {
-                    lock (dataChannel.SyncRoot)
-                    { // cleanup
-                        if (dataChannel.Count >= 5) dataChannel.Dequeue();
-                        if (dataChannel.Count >= 5) dataChannel.Dequeue();
-                        dataChannel.Enqueue(data);
-                        ++udpCounter;
+                    try
+                    {
+                        UdpClient candidate = new UdpClient(62701);
+                        lock (socketLock)
+                        {
+                            if (terminateFlag) candidate.Close();
+                            else
+                            {
+                                udpClient = candidate;
+                                receivingSocket = candidate;
+                            }
+                        }
+                    }
+                    catch (SocketException e)
+                    {
+                        // Another instance may still be releasing the port.
+                        // Retry without keeping a reload blocked.
+                        if (!bindErrorReported && !terminateFlag)
+                        {
+                            receiverError = "Phone controller: waiting for UDP port 62701: " + e.Message;
+                            bindErrorReported = true;
+                        }
+                        Thread.Sleep(200);
                     }
                 }
+                if (udpClient == null || terminateFlag) return;
 
-                if (lastAnnounceTime + 300 < TickCount)
-                {
-                    udpClient.Send(bAnnounce, 1, broadcastIP);
-                    //d($"announce sent");
-                    lastAnnounceTime = TickCount;
-                }
+                IPEndPoint remoteIP = new IPEndPoint(IPAddress.Any, 0);
+                IPEndPoint broadcastIP = new IPEndPoint(IPAddress.Broadcast, 62701);
+                udpClient.Client.ReceiveTimeout = 100;
+                int lastAnnounceTime = 0;
+                byte[] bAnnounce = new byte[] { 0xff };
 
-                if (fUiLastActive + 1000 < TickCount)
+                while (!terminateFlag)
                 {
-                    // need to terminate if got disconneected from UI thread events (i.e. plugin unloaded)
-                    SuperController.LogError($"term FMDFHGBDR");
-                    if (null != terminateReceivingThread)
-                        this.terminateReceivingThread();
-                    break;
+                    byte[] data = null;
+                    try { data = udpClient.Receive(ref remoteIP); }
+                    catch (SocketException) { if (terminateFlag) break; }
+                    catch (ObjectDisposedException) { break; }
+
+                    if (terminateFlag) break;
+                    if (data != null)
+                    {
+                        lock (dataChannel.SyncRoot)
+                        {
+                            if (dataChannel.Count >= 5) dataChannel.Dequeue();
+                            dataChannel.Enqueue(data);
+                            ++udpCounter;
+                        }
+                    }
+                    if (lastAnnounceTime + 300 < TickCount)
+                    {
+                        try { udpClient.Send(bAnnounce, 1, broadcastIP); }
+                        catch (SocketException) { if (terminateFlag) break; }
+                        catch (ObjectDisposedException) { break; }
+                        lastAnnounceTime = TickCount;
+                    }
                 }
             }
+            catch (Exception e)
+            {
+                if (!terminateFlag) receiverError = "Phone controller receiver stopped: " + e;
+            }
+            finally
+            {
+                lock (socketLock)
+                {
+                    if (receivingSocket == udpClient) receivingSocket = null;
+                }
+                if (udpClient != null) udpClient.Close();
+            }
         }
-
 
         // IMPORTANT - DO NOT make custom enums. The dynamic C# complier crashes Unity when it encounters these for
         // some reason
@@ -144,27 +159,13 @@ namespace MVRPlugin
                 }
                 */
 
-                fUiLastActive = TickCount;
-
-                if (null != terminateReceivingThread)
-                    terminateReceivingThread();
+                if (thread != null && thread.IsAlive) return;
+                terminateFlag = false;
                 thread = new Thread(new ThreadStart(TrFunc));
+                thread.IsBackground = true;
                 thread.Start();
 
 
-            }
-            catch (Exception e)
-            {
-                SuperController.LogError("Exception caught: " + e);
-            }
-        }
-
-        // Start is called once before Update or FixedUpdate is called and after Init()
-        void Start()
-        {
-            try
-            {
-                fUiLastActive = TickCount;
             }
             catch (Exception e)
             {
@@ -430,126 +431,74 @@ namespace MVRPlugin
             prevWorldRot = worldRot;
         }
 
-        Vector3 speed;
-        Vector3 acc_lpf;
-        Int64 accelPrevTimestamp = 0;
-        private void processAccel(Int64 timestamp, byte accuracy, float Xacc, float Yacc, float Zacc)
+        // ARCore position record v1: anchor-relative Android sensor axes in meters.
+        private const int PositionMask = (1 << 8) | (1 << 9) | (1 << 24) | (1 << 25);
+        private readonly int[] positionBits = { 8, 9, 24, 25 };
+        private readonly string[] positionControls = { "lHandControl", "rHandControl", "lFootControl", "rFootControl" };
+        private readonly string[] positionParents = { "lArmControl", "rArmControl", "lThighControl", "rThighControl" };
+        private readonly Vector3[] positionStart = new Vector3[4];
+        private readonly Vector3[] phoneStart = new Vector3[4];
+        private int positionActive;
+        private int positionBlocked;
+        private long positionReference;
+        private long positionSequence = -1;
+        private int lastPositionTick;
+        private Quaternion positionBasis;
+        private bool positionReady;
+
+        private void resetPositionTracking()
         {
-            if (0 == (keysPressed & (1 << 30)))
-                return;
+            positionBlocked |= keysPressed & PositionMask;
+            positionActive = 0;
+            positionReady = false;
+        }
 
-            //SuperController.LogError($"accel: /{accuracy}/  {Xacc} , {Yacc} , {Zacc}");
-            if (timestamp - accelPrevTimestamp > 100000000)
-            {
-                accelPrevTimestamp = timestamp;
-                speed = Vector3.zero;
-                //accelFilterAccuracy = 0;
-                acc_lpf = Vector3.zero;
-                return;
+        private void processPosition(byte[] p, int offset)
+        {
+            if (p[offset + 1] != 1) { resetPositionTracking(); return; }
+            byte tracking = p[offset + 2];
+            long reference = BitConverter.ToInt64(p, offset + 3);
+            long sequence = BitConverter.ToInt64(p, offset + 11);
+            if (sequence <= positionSequence) return;
+            positionSequence = sequence;
+            lastPositionTick = TickCount;
+            positionBlocked &= keysPressed;
+            if (tracking != 1) { resetPositionTracking(); return; }
+            float x = BitConverter.ToSingle(p, offset + 19);
+            float y = BitConverter.ToSingle(p, offset + 23);
+            float z = BitConverter.ToSingle(p, offset + 27);
+            if (float.IsNaN(x) || float.IsInfinity(x) || float.IsNaN(y) || float.IsInfinity(y) ||
+                float.IsNaN(z) || float.IsInfinity(z) || Mathf.Abs(x) > 10 || Mathf.Abs(y) > 10 || Mathf.Abs(z) > 10) {
+                resetPositionTracking(); return;
             }
-
-            Vector3 acc = new Vector3(Xacc, Yacc, -Zacc);
-
-            acc_lpf = Vector3.Lerp(acc_lpf, acc, (float)Math.Exp(-(timestamp - accelPrevTimestamp) / 0.15e9) ); // tau = 150ms
-            acc = acc_lpf;
-
-            if (acc.magnitude < 0.25f)
-            {
-                acc = Vector3.zero;
-                speed = Vector3.zero;
+            Vector3 phone = new Vector3(x, y, -z);
+            if (!positionReady || positionReference != reference) {
+                resetPositionTracking();
+                if (prevWorldRot == null) return;
+                positionReference = reference;
+                positionBasis = (Quaternion)prevWorldRot;
+                positionReady = true;
             }
-            else
-            {
-                acc = acc.normalized * (acc.magnitude - 0.25f);
-                //SuperController.LogError($"acc: {acc.magnitude}");
+            for (int i = 0; i < positionBits.Length; i++) {
+                int bit = 1 << positionBits[i];
+                if ((keysPressed & bit) == 0) {
+                    positionActive &= ~bit;
+                    positionBlocked &= ~bit;
+                    continue;
+                }
+                if ((positionBlocked & bit) != 0) continue;
+                FreeControllerV3 control = (FreeControllerV3)containingAtom.GetStorableByID(positionControls[i]);
+                FreeControllerV3 parent = (FreeControllerV3)containingAtom.GetStorableByID(positionParents[i]);
+                if (control == null || parent == null) continue;
+                if ((positionActive & bit) == 0) {
+                    positionStart[i] = control.transform.position;
+                    phoneStart[i] = phone;
+                    positionActive |= bit;
+                }
+                Vector3 target = positionStart[i] + positionBasis * (phone - phoneStart[i]);
+                float reach = i < 2 ? 0.55f : 0.85f;
+                control.transform.position = parent.transform.position + Vector3.ClampMagnitude(target - parent.transform.position, reach);
             }
-            //if (Mathf.Sqrt(acc.sqrMagnitude) < 0.06f)
-            //    speed = Vector3.Lerp(Vector3.zero, speed, (Mathf.Sqrt(acc.sqrMagnitude) - 0.01f) * 20);
-
-            //if( Mathf.Sqrt(acc.sqrMagnitude) < 0.05f) // typical drift occures with acceleration lower than 5 cm/s^2.
-            //   acc -= acc_lpf; // high-pass component
-            // Do I fine tuning here for glitches of my personal sensor?? maybe :(
-
-            float dt = ((float)(timestamp - accelPrevTimestamp)) / 1000000000.0f;
-
-
-            if (null != prevWorldRot)
-            {
-                acc = (Quaternion)prevWorldRot * acc;
-            }else
-                acc = Vector3.zero;
-
-            speed += acc * dt;
-            Vector3 dp = speed * dt;
-
-            if (0 != (keysPressed & (1 << 8))) // lHand
-            {
-                //FreeControllerV3 fc_chest = (FreeControllerV3)containingAtom.GetStorableByID("chestControl");
-                //Vector3 chest = fc_chest.transform.position;
-                //FreeControllerV3 fc_shoulder = (FreeControllerV3)containingAtom.GetStorableByID("lShoulderControl");
-                //Vector3 shoulder = fc_shoulder.transform.position;
-                FreeControllerV3 fc_arm = (FreeControllerV3)containingAtom.GetStorableByID("lArmControl");
-                Vector3 arm = fc_arm.transform.position;
-                FreeControllerV3 fc_hand = (FreeControllerV3)containingAtom.GetStorableByID("lHandControl");
-                Vector3 hand = fc_hand.transform.position;
-
-                Vector3 p = hand + dp;
-                p = arm + Vector3.ClampMagnitude(p - arm, 0.55f); // shperical limit for arm movemets
-
-                /* nah { //plane limit
-                    var n = Quaternion.AngleAxis(30f,arm-chest) * (arm - shoulder);
-                    Plane lim = new Plane(n, arm);
-                    if (!lim.GetSide(hand))
-                        p = lim.ClosestPointOnPlane(p);
-                }*/
-
-                fc_hand.transform.position = p;
-            }
-
-
-            if (0 != (keysPressed & (1 << 9))) // rHand
-            {
-                FreeControllerV3 fc_arm = (FreeControllerV3)containingAtom.GetStorableByID("rArmControl");
-                Vector3 arm = fc_arm.transform.position;
-                FreeControllerV3 fc_hand = (FreeControllerV3)containingAtom.GetStorableByID("rHandControl");
-                Vector3 hand = fc_hand.transform.position;
-
-                Vector3 p = hand + dp;
-                p = arm + Vector3.ClampMagnitude(p - arm, 0.55f); // shperical limit for arm movemets
-
-                fc_hand.transform.position = p;
-            }
-
-            if (0 != (keysPressed & (1 << 24))) // lFoot
-            {
-                FreeControllerV3 fc_thigh = (FreeControllerV3)containingAtom.GetStorableByID("lThighControl");
-                Vector3 thigh = fc_thigh.transform.position;
-                FreeControllerV3 fc_foot = (FreeControllerV3)containingAtom.GetStorableByID("lFootControl");
-                Vector3 foot = fc_foot.transform.position;
-
-                Vector3 p = foot + dp;
-                p = thigh + Vector3.ClampMagnitude(p - thigh, 0.85f); // shperical limit for arm movemets
-
-                fc_foot.transform.position = p;
-            }
-            if (0 != (keysPressed & (1 << 25))) // lFoot
-            {
-                FreeControllerV3 fc_thigh = (FreeControllerV3)containingAtom.GetStorableByID("rThighControl");
-                Vector3 thigh = fc_thigh.transform.position;
-                FreeControllerV3 fc_foot = (FreeControllerV3)containingAtom.GetStorableByID("rFootControl");
-                Vector3 foot = fc_foot.transform.position;
-
-                Vector3 p = foot + dp;
-                p = thigh + Vector3.ClampMagnitude(p - thigh, 0.85f); // shperical limit for arm movemets
-
-                fc_foot.transform.position = p;
-            }
-
-
-            //speed = Vector3.Lerp(Vector3.zero, speed,  (float)Math.Exp(-(timestamp - accelPrevTimestamp) / .4e9)); // 400ms
-            speed *= (float)Math.Exp(-(timestamp - accelPrevTimestamp) / .4e9); // 400ms
-
-            accelPrevTimestamp = timestamp;
         }
 
         private void processMagnetic(Int64 timestamp, byte accuracy, float X, float Y, float Z)
@@ -592,24 +541,11 @@ namespace MVRPlugin
                         }
                         break;
 
-                    case 2: // Accel
-                        {
-                            Int64 timestamp = System.BitConverter.ToInt64(p, pp + 1);
-                            byte accuracy = p[pp + 9];
-                            byte length = p[pp + 10];
-                            pp += 11;
-                            if (length == 3)
-                            {
-                                float Xacc = System.BitConverter.ToSingle(p, pp);
-                                pp += 4;
-                                float Yacc = System.BitConverter.ToSingle(p, pp);
-                                pp += 4;
-                                float Zacc = System.BitConverter.ToSingle(p, pp);
-                                pp += 4;
-                                processAccel(timestamp, accuracy, Xacc, Yacc, Zacc);
-                            }
-                            else return;
-                        }
+                    case 2: // Ignore legacy linear acceleration records.
+                        if (pp + 11 > p.Length) return;
+                        int legacyLength = p[pp + 10];
+                        if (pp + 11 + legacyLength * 4 > p.Length) return;
+                        pp += 11 + legacyLength * 4;
                         break;
                     case 3: // Gravity
                         {
@@ -666,6 +602,12 @@ namespace MVRPlugin
                             break;
                         }
 
+                    case 33: // Position v1: version, state, reference, sequence, xyz.
+                        if (pp + 31 > p.Length) return;
+                        processPosition(p, pp);
+                        pp += 31;
+                        break;
+
                     case 0xff: // announce packet
                         return;
 
@@ -681,7 +623,16 @@ namespace MVRPlugin
         // Update is called with each rendered frame by Unity
         void Update()
         {
-            fUiLastActive = TickCount;
+            string error = receiverError;
+            if (error != null)
+            {
+                receiverError = null;
+                SuperController.LogError(error);
+            }
+            if (positionSequence >= 0 && TickCount - lastPositionTick > 500) {
+                resetPositionTracking();
+                positionSequence = -1;
+            }
 
             try
             {
@@ -727,9 +678,7 @@ namespace MVRPlugin
         // if you registered objects to supercontroller or atom, you should unregister them here
         void OnDestroy()
         {
-            SuperController.LogError($"OnDestroy");
-            if (null != this.terminateReceivingThread)
-                this.terminateReceivingThread();
+            StopReceiver();
         }
 
 

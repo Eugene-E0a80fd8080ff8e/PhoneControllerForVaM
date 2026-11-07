@@ -22,7 +22,7 @@ import java.util.TreeMap;
 
 public class CommunicationThread implements Runnable {
 
-    private boolean stop = false;
+    private volatile boolean stop = false;
     private Thread thr = null;
 
     private TreeMap<String,Long> clients_lastSeen = new TreeMap<String, Long>();
@@ -45,11 +45,9 @@ public class CommunicationThread implements Runnable {
         }
         thr=null;
 
-        for(int p : sockets.keySet())
-        {
-            sockets.get(p).close();
-            sockets.remove(p);
-        }
+        for (DatagramSocket socket : sockets.values()) socket.close();
+        sockets.clear();
+        clients_lastSeen.clear();
 
         StateManager.update( (state) -> { state.clientsList = ""; return state; });
 
@@ -142,7 +140,6 @@ public class CommunicationThread implements Runnable {
 
             for(SensorDatum sd : llsd) {
                 if(sd.sensorType == SensorDatum.GYRO
-                        || sd.sensorType == SensorDatum.ACCEL
                         || sd.sensorType == SensorDatum.MAGNETIC
                         || sd.sensorType == SensorDatum.GRAVITY )
                 {
@@ -155,6 +152,13 @@ public class CommunicationThread implements Runnable {
                         bb.putFloat(f);
                 }
             }
+
+            // Position record goes last so older plugins retain rotation support.
+            PositionTracker.Sample position = PositionTracker.sample;
+            boolean tracking = position != null && android.os.SystemClock.elapsedRealtime() - position.sampledAt < 500;
+            PositionPacket.write(bb, tracking, tracking ? position.reference : 0L,
+                    android.os.SystemClock.elapsedRealtimeNanos(),
+                    tracking ? position.x : 0f, tracking ? position.y : 0f, tracking ? position.z : 0f);
 
             if( bb.position() > 0) {
 
@@ -186,12 +190,13 @@ public class CommunicationThread implements Runnable {
 
             {
                 boolean needUpdate = false;
-                for (String ia : clients_lastSeen.keySet())
+                java.util.Iterator<java.util.Map.Entry<String, Long>> it = clients_lastSeen.entrySet().iterator();
+                while (it.hasNext())
                 {
-                    long t = clients_lastSeen.get(ia);
+                    long t = it.next().getValue();
                     if(t + 1500 < System.currentTimeMillis() )
                     {
-                        clients_lastSeen.remove(ia);
+                        it.remove();
                         needUpdate = true;
                     }
                 }
@@ -212,11 +217,9 @@ public class CommunicationThread implements Runnable {
 
         //System.out.println("communication thread exited");
 
-        for(int p : sockets.keySet())
-        {
-            sockets.get(p).close();
-            sockets.remove(p);
-        }
+        for (DatagramSocket socket : sockets.values()) socket.close();
+        sockets.clear();
+        clients_lastSeen.clear();
 
         StateManager.update( (state) -> { state.clientsList = ""; return state; });
     }
