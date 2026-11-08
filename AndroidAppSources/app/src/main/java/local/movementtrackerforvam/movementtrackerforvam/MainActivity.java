@@ -134,6 +134,7 @@ public class MainActivity extends AppCompatActivity implements StateManager.Stat
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
+        if (item.getItemId()==R.id.invoke_camera_page) { startActivity(new Intent(this, CameraActivity.class)); return true; }
         if( R.id.invoke_settings_page == item.getItemId() )
         {
             //Toast.makeText(this, "Settings page", Toast.LENGTH_SHORT).show();
