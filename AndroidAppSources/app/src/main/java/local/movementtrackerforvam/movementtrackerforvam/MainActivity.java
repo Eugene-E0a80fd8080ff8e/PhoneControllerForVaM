@@ -143,13 +143,6 @@ public class MainActivity extends AppCompatActivity implements StateManager.Stat
 
             return true;
         }
-        if( R.id.invoke_azimuth_setup_page == item.getItemId() )
-        {
-            //Toast.makeText(this, "Settings page", Toast.LENGTH_SHORT).show();
-            Intent intent = new Intent(this, AzimuthSetup.class);
-            startActivity(intent);
-            return true;
-        }
 
         return super.onOptionsItemSelected(item);
     }
@@ -250,6 +243,33 @@ public class MainActivity extends AppCompatActivity implements StateManager.Stat
     }
 
 
+    private void updateControllerSides() {
+        boolean mirrored = PreferenceManager.getDefaultSharedPreferences(this)
+                .getBoolean("controller_face_to_face", false);
+        int[][] pairs = {
+                {R.id.buttonEngageLArm, R.id.buttonEngageRArm},
+                {R.id.buttonEngageLElbow, R.id.buttonEngageRElbow},
+                {R.id.buttonEngageLHand, R.id.buttonEngageRHand},
+                {R.id.buttonEngageLThigh, R.id.buttonEngageRThigh},
+                {R.id.buttonEngageLKnee, R.id.buttonEngageRKnee},
+                {R.id.buttonEngageLFoot, R.id.buttonEngageRFoot}
+        };
+        int gap = Math.round(16 * getResources().getDisplayMetrics().density);
+        // Move actual buttons so label, accessibility, highlight and body-control ID
+        // stay together. Only horizontal constraints change; row spacing is preserved.
+        for (int[] pair : pairs) for (int side = 0; side < 2; side++) {
+            View button = findViewById(pair[side]);
+            android.support.constraint.ConstraintLayout.LayoutParams params =
+                    (android.support.constraint.ConstraintLayout.LayoutParams) button.getLayoutParams();
+            boolean onLeft = mirrored ? side == 1 : side == 0;
+            params.leftToRight = onLeft ? -1 : R.id.verticalGuideline;
+            params.rightToLeft = onLeft ? R.id.verticalGuideline : -1;
+            params.leftMargin = onLeft ? 0 : gap;
+            params.rightMargin = onLeft ? gap : 0;
+            button.setLayoutParams(params);
+        }
+    }
+
     private void updateButtonColors() {
         for (int buttonId : button2bit.keySet()) {
             int color = (buttonsPressed & (1 << button2bit.get(buttonId))) != 0 ? 0xffFFB7C5 : 0xffd8d8d8;
@@ -260,6 +280,7 @@ public class MainActivity extends AppCompatActivity implements StateManager.Stat
     @Override protected void onResume() {
         super.onResume();
         activityResumed = true;
+        updateControllerSides();
         if (positionRequested) startPositionTracking();
     }
 
@@ -414,5 +435,6 @@ public class MainActivity extends AppCompatActivity implements StateManager.Stat
     @Override
     public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
         updateAzimuthMessage();
+        if ("controller_face_to_face".equals(key)) runOnUiThread(this::updateControllerSides);
     }
 }

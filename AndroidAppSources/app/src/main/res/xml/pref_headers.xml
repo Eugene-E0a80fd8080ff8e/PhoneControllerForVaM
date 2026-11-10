@@ -12,6 +12,15 @@
         android:icon="@drawable/ic_settings_black_24dp"
         android:title="Controller Settings" />
 
+    <header
+        android:title="@string/azimuth_setup_title"
+        android:summary="@string/azimuth_setup_summary"
+        android:icon="@drawable/ic_computer_black_24dp">
+        <intent
+            android:targetPackage="local.movementtrackerforvam.movementtrackerforvam"
+            android:targetClass="local.movementtrackerforvam.movementtrackerforvam.AzimuthSetup" />
+    </header>
+
 <!--
     <header
         android:fragment="local.movementtrackerforvam.movementtrackerforvam.SettingsActivity$GeneralPreferenceFragment"

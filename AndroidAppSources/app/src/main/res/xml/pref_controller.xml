@@ -7,4 +7,10 @@
         android:summary="@string/hold_or_toggle_summary"
         android:title="@string/hold_or_toggle_title" />
 
+    <SwitchPreference
+        android:key="controller_face_to_face"
+        android:defaultValue="false"
+        android:title="@string/controller_face_to_face_title"
+        android:summary="@string/controller_face_to_face_summary" />
+
 </PreferenceScreen>

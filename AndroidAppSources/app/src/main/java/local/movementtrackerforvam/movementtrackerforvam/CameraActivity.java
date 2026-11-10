@@ -93,7 +93,7 @@ public class CameraActivity extends AppCompatActivity {
    Map<Long,Parts> frames=new LinkedHashMap<>();byte[] receive=new byte[1500];
    message(g,"Finding VaM camera service");
    while(g==generation){long now=SystemClock.elapsedRealtime();
-    if(now-lastHello>500){byte[] h=ByteBuffer.allocate(13).order(ByteOrder.LITTLE_ENDIAN).put("PCCHELLO2".getBytes("US-ASCII")).putShort((short)streamWidth).putShort((short)streamHeight).array();s.send(new DatagramPacket(h,h.length,peer==null?new InetSocketAddress(server,62711):peer));lastHello=now;}
+    if(now-lastHello>500){byte[] h=ByteBuffer.allocate(13).order(ByteOrder.LITTLE_ENDIAN).put("PCCHELLO2".getBytes("US-ASCII")).putShort((short)streamWidth).putShort((short)streamHeight).array();s.send(new DatagramPacket(h,h.length,peer==null?new InetSocketAddress(server,62701):peer));lastHello=now;}
     CameraPoseTracker.Sample pose=CameraPoseTracker.sample;
     if(peer!=null&&now-lastPose>=16&&pose!=null&&now-pose.sampledAt<200){
      ByteBuffer p=ByteBuffer.allocate(64).order(ByteOrder.LITTLE_ENDIAN);p.put(new byte[]{80,67,80,49}).putInt((int)session).putLong(++seq).putLong(pose.reference+referenceOffset);
@@ -107,7 +107,7 @@ public class CameraActivity extends AppCompatActivity {
     if(packet.getLength()==12&&b.getInt(0)==0x32414350){
      if(Short.toUnsignedInt(b.getShort(8))!=streamWidth||Short.toUnsignedInt(b.getShort(10))!=streamHeight){message(g,"Server image size mismatch; update PhoneCamera plugin");continue;}
      InetSocketAddress from=(InetSocketAddress)packet.getSocketAddress();if(peer!=null&&!peer.equals(from))continue;peer=from;long id=Integer.toUnsignedLong(b.getInt(4));
-     if(session!=id){decodeEpoch.incrementAndGet();session=id;frames.clear();lastCompleted=-1;seq=0;referenceOffset++;}continue;
+     if(session!=id){getSharedPreferences("phone_camera",0).edit().putString("last_server",from.getAddress().getHostAddress()).apply();decodeEpoch.incrementAndGet();session=id;frames.clear();lastCompleted=-1;seq=0;referenceOffset++;}continue;
     }
     if(peer==null||!peer.equals(packet.getSocketAddress())||packet.getLength()<28||b.getInt(0)!=0x31464350||Integer.toUnsignedLong(b.getInt(4))!=session)continue;
     long id=Integer.toUnsignedLong(b.getInt(8));int index=Short.toUnsignedInt(b.getShort(12)),count=Short.toUnsignedInt(b.getShort(14)),total=b.getInt(16),length=packet.getLength()-28;

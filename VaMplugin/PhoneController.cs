@@ -2,23 +2,20 @@
 using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
-using SimpleJSON;
 
 using System.Net.Sockets;
 using System.Threading;
-// :( using System.Collections.Concurrent; 
+// :( using System.Collections.Concurrent;
 using System.Collections;
 using System.Net;
 using System.Diagnostics;
-using System.IO;
-using Leap;
 using System.Text;
 
 namespace MVRPlugin
 {
 
 
-    public class PhoneController : MVRScript
+    public partial class PhoneController : MVRScript
     {
 
         private JSONStorableFloat _azimuth;
@@ -71,6 +68,7 @@ namespace MVRPlugin
                     try
                     {
                         UdpClient candidate = new UdpClient(62701);
+                        candidate.EnableBroadcast = true;
                         lock (socketLock)
                         {
                             if (terminateFlag) candidate.Close();
@@ -97,6 +95,7 @@ namespace MVRPlugin
 
                 IPEndPoint remoteIP = new IPEndPoint(IPAddress.Any, 0);
                 IPEndPoint broadcastIP = new IPEndPoint(IPAddress.Broadcast, 62701);
+                SetCameraSocket(udpClient);
                 udpClient.Client.ReceiveTimeout = 100;
                 int lastAnnounceTime = 0;
                 byte[] bAnnounce = new byte[] { 0xff };
@@ -109,6 +108,14 @@ namespace MVRPlugin
                     catch (ObjectDisposedException) { break; }
 
                     if (terminateFlag) break;
+                    // Controller discovery probes get a direct reply, independent of
+                    // broadcast delivery through a hotspot/Wine network stack.
+                    if (IsControllerDiscovery(data)) {
+                        try { udpClient.Send(bAnnounce,1,remoteIP); }
+                        catch(SocketException) { if(terminateFlag)break; }
+                        data=null;
+                    }
+                    if (data != null && RouteCameraDatagram(data, remoteIP)) data = null;
                     if (data != null)
                     {
                         lock (dataChannel.SyncRoot)
@@ -160,6 +167,7 @@ namespace MVRPlugin
                 */
 
                 if (thread != null && thread.IsAlive) return;
+                InitializeCameraService();
                 terminateFlag = false;
                 thread = new Thread(new ThreadStart(TrFunc));
                 thread.IsBackground = true;
@@ -177,13 +185,13 @@ namespace MVRPlugin
         private void processGyro(Int64 timestamp, byte accuracy, float XrotRate, float YrotRate, float ZrotRate)
         {
             /*
-			if( timestamp - gyroPrevTimestamp > 100000000) // 100ms
+            if( timestamp - gyroPrevTimestamp > 100000000) // 100ms
             {
-				// time gap too long -- igronig data
-				gyroPrevTimestamp = timestamp;
-				return;
-			}
-			*/
+                // time gap too long -- igronig data
+                gyroPrevTimestamp = timestamp;
+                return;
+            }
+            */
 
             // gravity plane is a plane orthogonal to gravity vector
             Vector3 northOnGravityPlane = Vector3.ProjectOnPlane(magneticField, gravity);  // Projection of north to the gravity plane (phone's coordinates)
@@ -201,7 +209,7 @@ namespace MVRPlugin
 
             ///////////////////////////////////////
 
-            // Need to apply low-pass filter to it. I chose the time constant to be 3 sec. 
+            // Need to apply low-pass filter to it. I chose the time constant to be 3 sec.
             Quaternion absRotSmoothed;
             {
                 if (0 == prevMagneticAbsRotTime)
@@ -241,15 +249,15 @@ namespace MVRPlugin
 
 
             {   // debugging
-                //	Atom a = SuperController.singleton.GetAtomByUid("Empty");
-                //	a.transform.rotation = absRot;
+                //  Atom a = SuperController.singleton.GetAtomByUid("Empty");
+                //  a.transform.rotation = absRot;
             }
 
 
             Quaternion camRot = SuperController.singleton.lookCamera.transform.rotation;
 
             Quaternion worldRot = camRot * absRot;
-            
+
 
             {   // debugging
                 //Atom a = SuperController.singleton.GetAtomByUid("Empty");
@@ -620,6 +628,8 @@ namespace MVRPlugin
             }
         }
 
+        public static bool IsControllerDiscovery(byte[] data) { return data!=null && data.Length==1 && data[0]==0xfe; }
+
         // Update is called with each rendered frame by Unity
         void Update()
         {
@@ -678,6 +688,7 @@ namespace MVRPlugin
         // if you registered objects to supercontroller or atom, you should unregister them here
         void OnDestroy()
         {
+            StopCameraService();
             StopReceiver();
         }
 
@@ -716,11 +727,11 @@ namespace MVRPlugin
 
         private static long tickstart = -1;
         static public int TickCount {
-        	get {
-        		long t = System.DateTime.Now.Ticks;
-        		if(tickstart == -1) tickstart=t;
-        		return (int)((t-tickstart)/10000);
-        	}
+            get {
+                long t = System.DateTime.Now.Ticks;
+                if(tickstart == -1) tickstart=t;
+                return (int)((t-tickstart)/10000);
+            }
         }
 
     }

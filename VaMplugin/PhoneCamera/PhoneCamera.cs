@@ -12,14 +12,27 @@ using FivelSystems.LiveStreamConnectorToOBS;
 
 namespace MVRPlugin
 {
-    public class PhoneCamera : MVRScript
+    public partial class PhoneController : MVRScript
     {
         private JSONStorableString report;
         private JSONStorableStringChooser resolution, rate;
         private bool frameObjectRequested;
         private long reference; private Vector3 basePosition; private Quaternion baseRotation;
         private JSONStorableFloat quality;
-        private Worker worker;
+        private volatile Worker worker;
+        private volatile UdpClient sharedCameraSocket;
+        protected void SetCameraSocket(UdpClient socket) { sharedCameraSocket=socket; }
+        public static bool IsCameraPacket(byte[] data) { return data!=null && (data.Length>=4 && data[0]==80 &&
+                ((data[1]==67 && ((data[2]==67 && data[3]==72) || (data[2]==80 && data[3]==49))) ||
+                 (data[1]==66 && data[2]==65 && data[3]==49))); }
+        protected bool RouteCameraDatagram(byte[] data,IPEndPoint from)
+        {
+            // Reserve only exact camera protocol families; legacy records retain their parser.
+            if(!IsCameraPacket(data))return false;
+            Worker active=worker;
+            if(active!=null) active.Enqueue(data,new IPEndPoint(from.Address,from.Port));
+            return true;
+        }
         private Camera capture;
         private GameObject cameraObject;
         private RenderTexture target;
@@ -39,7 +52,7 @@ namespace MVRPlugin
         private class Readback { public AsyncGPUReadbackRequest request; public double started; }
         private class Frame { public byte[] pixels; public double started; }
 
-        public override void Init()
+        private void InitializeCameraService()
         {
             resolution = new JSONStorableStringChooser("Resolution", new List<string> { "640x360", "960x540", "1280x720" }, "640x360", "Resolution");
             rate = new JSONStorableStringChooser("Stream FPS", new List<string> { "15", "30" }, "30", "Stream FPS");
@@ -49,7 +62,7 @@ namespace MVRPlugin
             CreateButton("Frame containing object").button.onClick.AddListener(delegate { frameObjectRequested=true; });
             CreateButton("Stop").button.onClick.AddListener(delegate { cancelled = true; });
             CreateButton("Copy report").button.onClick.AddListener(delegate { GUIUtility.systemCopyBuffer = report.val; });
-            report = new JSONStorableString("Report", "Start receiver on the other computer, then Run. UDP port 62711. Load the .cslist, not individual .cs files.");
+            report = new JSONStorableString("Report", "Start receiver on the other computer, then Run. UDP port 62701. Load the .cslist, not individual .cs files.");
             CreateTextField(report).height = 1100f;
             Begin(); // Listen immediately on plugin load; capture starts when a phone connects.
         }
@@ -107,15 +120,16 @@ namespace MVRPlugin
             if (!BitConverter.IsLittleEndian) throw new Exception("Camera protocol v1 requires a little-endian sender");
             if (!SystemInfo.supportsAsyncGPUReadback) throw new Exception("Async GPU readback unsupported on this graphics device");
             worker = new Worker(width, height, jpegQuality);
+            worker.owner=this;
             worker.Start();
-            Add("Listening for phone on UDP 62711...");
+            Add("Listening for phone on UDP 62701...");
             double deadline = double.MaxValue;
             while (!worker.connected && Now() < deadline)
             {
                 if (worker.error != null) throw new Exception(worker.error);
                 yield return null;
             }
-            if (!worker.connected) throw new Exception("No receiver. Check --host and inbound UDP 62711 on the VaM host (including the Ubuntu firewall for Wine/Proton).");
+            if (!worker.connected) throw new Exception("No receiver. Check --host and inbound UDP 62701 on the VaM host (including the Ubuntu firewall for Wine/Proton).");
             width=worker.width; height=worker.height;
             Add("Client connected: "+width+"x"+height+", 30 fps, quality 75.");
             double start = Now(), last = start;
@@ -384,7 +398,7 @@ namespace MVRPlugin
             if (target != null) { target.Release(); UnityEngine.Object.Destroy(target); target=null; }
             if (cameraObject != null) { UnityEngine.Object.Destroy(cameraObject); cameraObject=null; capture=null; }
         }
-        private void OnDestroy()
+        protected void StopCameraService()
         {
             cancelled=true; DisableCapture(); StopAllCoroutines(); if (worker != null) worker.Stop();
             // Avoid freeing a texture still referenced by the GPU, without blocking reload.
@@ -412,6 +426,10 @@ namespace MVRPlugin
             private readonly Stack<byte[]> pool = new Stack<byte[]>();
             private Frame pending;
             private UdpClient socket;
+            public PhoneController owner;
+            private class Datagram { public byte[] data; public IPEndPoint from; }
+            private readonly Queue<Datagram> inbox=new Queue<Datagram>();
+            public void Enqueue(byte[] data,IPEndPoint from) { lock(gate) { if(inbox.Count>=128)inbox.Dequeue(); inbox.Enqueue(new Datagram { data=data,from=from }); } }
             private IPEndPoint peer;
             private int encoded, sent, packets, replaced, acked;
             private long bytes;
@@ -426,10 +444,10 @@ namespace MVRPlugin
             public void Stop() { stop=true; } // all socket I/O nonblocking; no joins or Unity APIs
             private void Poll()
             {
-                for(int i=0;i<128 && socket.Available>0;i++)
+                for(int i=0;i<128;i++)
                 {
-                    IPEndPoint from=new IPEndPoint(IPAddress.Any,0);
-                    byte[] data=socket.Receive(ref from);
+                    Datagram packet; lock(gate) { if(inbox.Count==0)break; packet=inbox.Dequeue(); }
+                    IPEndPoint from=packet.from; byte[] data=packet.data;
                     if(data.Length==13 && Encoding.ASCII.GetString(data,0,9)=="PCCHELLO2")
                     {
                         int w=BitConverter.ToUInt16(data,9), h=BitConverter.ToUInt16(data,11);
@@ -470,7 +488,8 @@ namespace MVRPlugin
             {
                 try
                 {
-                    socket=new UdpClient(new IPEndPoint(IPAddress.Any,62711)); socket.Client.Blocking=false;
+                    while(!stop && owner.sharedCameraSocket==null) Thread.Sleep(5);
+                    if(stop)return; socket=owner.sharedCameraSocket;
                     JpegEncoder encoder=new JpegEncoder();
                     byte[] gamma=new byte[256]; for(int i=0;i<256;i++) { double v=i/255.0; gamma[i]=(byte)Math.Min(255,Math.Round(255*(v<=.0031308 ? 12.92*v : 1.055*Math.Pow(v,1/2.4)-.055))); }
                     while(!stop)
@@ -511,7 +530,7 @@ namespace MVRPlugin
                     }
                 }
                 catch(Exception e) { error=e.ToString(); }
-                finally { if(socket!=null) socket.Close(); done=true; }
+                finally { done=true; } // Shared socket belongs to the controller receiver.
             }
             private static void Put(byte[] dest,int offset,byte[] data) { Array.Copy(data,0,dest,offset,data.Length); }
             public string Summary()

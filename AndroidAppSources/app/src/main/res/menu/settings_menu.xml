@@ -11,10 +11,6 @@
         android:visible="true"
         />
 
-    <item android:id="@+id/invoke_azimuth_setup_page"
-        android:icon="@drawable/ic_computer_white_24dp"
-        android:title="Setup"
-        app:showAsAction="always"
-        />
+
 
 </menu>

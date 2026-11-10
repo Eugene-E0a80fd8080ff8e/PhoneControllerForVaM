@@ -127,4 +127,8 @@
     <string name="hold_or_toggle_title">Hold vs toggle buttons</string>
     <string name="hold_or_toggle_summary">You need to hold button to move joint</string>
 
+    <string name="controller_face_to_face_title">Face-to-face button layout</string>
+    <string name="controller_face_to_face_summary">Place the model’s right-side buttons on your left, and left-side buttons on your right. Labels follow the buttons.</string>
+    <string name="azimuth_setup_title">Azimuth Setup</string>
+    <string name="azimuth_setup_summary">Set the direction toward your monitor</string>
 </resources>

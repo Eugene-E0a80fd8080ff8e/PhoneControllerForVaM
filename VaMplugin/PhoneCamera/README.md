@@ -1,9 +1,9 @@
 # Phone camera (initial integration)
 
-Copy this directory to `VaM/Custom/Scripts/PhoneCamera/` and load
-`PhoneCamera.cslist` on an Empty atom. Enable plugin network access and click
-**Start camera service** if it was stopped. It starts listening automatically when loaded and listens on UDP 62711. Existing PhoneController uses
-62701 and is independently loadable. No TCP or ICMP is used.
+Load the combined **PhoneController.cslist** entry described in `../README.md`.
+This directory contains supporting code for that one plugin, not a separate entry.
+Both body control and camera streaming share UDP 62701; the phone page selects
+which traffic to send. Remove old standalone instances when upgrading.
 
 Install the Android debug APK, open **Camera** in the toolbar, and press Start.
 The app requests camera permission/ARCore services as needed. Leave Camera settings

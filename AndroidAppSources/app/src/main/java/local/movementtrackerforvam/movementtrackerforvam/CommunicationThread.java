@@ -87,7 +87,7 @@ public class CommunicationThread implements Runnable {
             try {
                 sockets.put(iport, new DatagramSocket(iport) );
                 sockets.get(iport).setSoTimeout(1);
-                //socket.setBroadcast(true);
+                sockets.get(iport).setBroadcast(true);
             }catch(SocketException e) {
                 Log.d("CommunicationThread", "Socket Exception");
                 throw new AssertionError("A socket was not created\n" + e.toString());
@@ -104,8 +104,29 @@ public class CommunicationThread implements Runnable {
         long timeStart = System.currentTimeMillis();
         byte [] buffer = new byte[1024];
         byte [] receiveBuffer = new byte[1024];
+        long lastDiscovery = 0;
 
         while(! stop){
+
+            long discoveryNow = android.os.SystemClock.elapsedRealtime();
+            if (discoveryNow - lastDiscovery >= 500) {
+                lastDiscovery = discoveryNow;
+                DatagramSocket discoverySocket = getSocket();
+                byte[] probe = new byte[]{(byte)0xfe};
+                try {
+                    discoverySocket.send(new DatagramPacket(probe, 1,
+                            InetAddress.getByName("255.255.255.255"), discoverySocket.getLocalPort()));
+                } catch (IOException e) { Log.d("CommunicationThread", "Broadcast discovery: " + e.getMessage()); }
+                SharedPreferences cameraPreferences = MyApplication.getAppContext().getSharedPreferences("phone_camera", Context.MODE_PRIVATE);
+                String host = cameraPreferences.getString("host", "").trim();
+                if (host.isEmpty()) host = cameraPreferences.getString("last_server", "");
+                if (!host.isEmpty()) {
+                    try {
+                        discoverySocket.send(new DatagramPacket(probe, 1,
+                                InetAddress.getByName(host), discoverySocket.getLocalPort()));
+                    } catch (IOException e) { Log.d("CommunicationThread", "Direct discovery: " + e.getMessage()); }
+                }
+            }
 
             ArrayList<SensorDatum> llsd = new ArrayList<>();
 
