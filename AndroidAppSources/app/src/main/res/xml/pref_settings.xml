@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <PreferenceCategory android:title="@string/pref_section_common">
+        <ListPreference
+            android:key="startup_page"
+            android:title="@string/pref_startup_page"
+            android:defaultValue="camera"
+            android:entries="@array/startup_page_titles"
+            android:entryValues="@array/startup_page_values" />
+
+        <EditTextPreference
+            android:key="host"
+            android:title="@string/pref_vam_host"
+            android:dialogMessage="@string/pref_host_hint"
+            android:inputType="textUri"
+            android:singleLine="true"
+            android:persistent="false" />
+
+        <Preference
+            android:key="vam_port"
+            android:title="@string/pref_title_network_port"
+            android:selectable="false" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="@string/title_joints">
+        <SwitchPreference
+            android:key="hold_or_toggle_switch"
+            android:defaultValue="false"
+            android:title="@string/hold_or_toggle_title"
+            android:summaryOff="@string/hold_or_toggle_summary"
+            android:summaryOn="@string/hold_or_toggle_enabled" />
+
+        <SwitchPreference
+            android:key="controller_face_to_face"
+            android:defaultValue="false"
+            android:title="@string/controller_face_to_face_title"
+            android:summary="@string/controller_face_to_face_summary" />
+
+        <Preference
+            android:key="azimuth_setup"
+            android:title="@string/azimuth_setup_title"
+            android:summary="@string/azimuth_setup_summary" />
+
+        <ListPreference
+            android:key="network_freq"
+            android:title="@string/pref_title_network_freq"
+            android:defaultValue="60"
+            android:entries="@array/pref_network_freq_titles"
+            android:entryValues="@array/pref_network_freq_values" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="@string/title_camera">
+        <SwitchPreference
+            android:key="align_horizons"
+            android:defaultValue="true"
+            android:title="@string/pref_align_horizons"
+            android:summary="@string/pref_align_horizons_summary" />
+
+        <EditTextPreference
+            android:key="scale_presets"
+            android:title="@string/pref_scale_presets"
+            android:dialogMessage="@string/pref_scale_presets_hint"
+            android:inputType="text"
+            android:persistent="false" />
+    </PreferenceCategory>
+</PreferenceScreen>

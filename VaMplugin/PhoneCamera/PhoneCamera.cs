@@ -17,13 +17,14 @@ namespace MVRPlugin
         private JSONStorableString report;
         private JSONStorableStringChooser resolution, rate;
         private bool frameObjectRequested;
+        private int alignFrameWhenTrackingRevision;
         private long reference; private Vector3 basePosition; private Quaternion baseRotation;
         private JSONStorableFloat quality;
         private volatile Worker worker;
         private volatile UdpClient sharedCameraSocket;
         protected void SetCameraSocket(UdpClient socket) { sharedCameraSocket=socket; }
         public static bool IsCameraPacket(byte[] data) { return data!=null && (data.Length>=4 && data[0]==80 &&
-                ((data[1]==67 && ((data[2]==67 && data[3]==72) || (data[2]==80 && data[3]==49))) ||
+                ((data[1]==67 && ((data[2]==67 && data[3]==72) || (data[2]==80 && (data[3]==49 || data[3]==50)))) ||
                  (data[1]==66 && data[2]==65 && data[3]==49))); }
         protected bool RouteCameraDatagram(byte[] data,IPEndPoint from)
         {
@@ -39,6 +40,7 @@ namespace MVRPlugin
         private readonly Queue<Readback> requests = new Queue<Readback>();
         private bool running, cancelled;
         private double captureStarted, captureScheduled;
+        private int captureTargetRevision;
         private bool awaitingCapture, captureRendered;
         private int pixelChecks, blackPixelChecks;
         private string captureError;
@@ -49,8 +51,8 @@ namespace MVRPlugin
         private readonly List<double> frameMs = new List<double>();
         private readonly List<double> baselineMs = new List<double>();
         private static double Now() { return Stopwatch.GetTimestamp() / (double)Stopwatch.Frequency; }
-        private class Readback { public AsyncGPUReadbackRequest request; public double started; }
-        private class Frame { public byte[] pixels; public double started; }
+        private class Readback { public AsyncGPUReadbackRequest request; public double started; public int revision; }
+        private class Frame { public byte[] pixels; public double started; public int revision; }
 
         private void InitializeCameraService()
         {
@@ -59,7 +61,7 @@ namespace MVRPlugin
             quality = new JSONStorableFloat("JPEG quality", 75f, 30f, 95f, true);
 
             CreateButton("Start camera service").button.onClick.AddListener(Begin);
-            CreateButton("Frame containing object").button.onClick.AddListener(delegate { frameObjectRequested=true; });
+            CreateButton("Frame target").button.onClick.AddListener(delegate { frameObjectRequested=true; });
             CreateButton("Stop").button.onClick.AddListener(delegate { cancelled = true; });
             CreateButton("Copy report").button.onClick.AddListener(delegate { GUIUtility.systemCopyBuffer = report.val; });
             report = new JSONStorableString("Report", "Start receiver on the other computer, then Run. UDP port 62701. Load the .cslist, not individual .cs files.");
@@ -156,6 +158,7 @@ namespace MVRPlugin
             if (!target.Create()) throw new Exception("RenderTexture.Create failed");
             capture.transform.position = source.transform.position; capture.transform.rotation = source.transform.rotation;
             reference=0;
+            alignFrameWhenTrackingRevision = 0;
             capture.targetTexture = target;
             Add("Capture mask=0x" + capture.cullingMask.ToString("X8") + "; viewport=" + capture.rect + "; clear=" + capture.clearFlags + "; MSAA=" + target.antiAliasing);
             if (capture.cullingMask == 0) throw new Exception("Capture mask is empty after UI exclusion");
@@ -183,7 +186,7 @@ namespace MVRPlugin
                         data.CopyTo(pixels);
                         // First three frames only; included in copy/queue timing.
                         if (pixelChecks < 3) CheckPixels(pixels);
-                        worker.Submit(new Frame { pixels = pixels, started = item.started });
+                        worker.Submit(new Frame { pixels = pixels, started = item.started, revision = item.revision });
                     }
                     catch { worker.Return(pixels); throw; }
                     copyMs.Add((Now()-copyStart)*1000);
@@ -197,6 +200,7 @@ namespace MVRPlugin
                     else
                     {
                         ApplyPose();
+                        captureTargetRevision = targetRevision;
                         captureScheduled = Now(); captureRendered = false; awaitingCapture = true;
                         capture.enabled = true; // Keep enabled until the next frame, after final target resolve.
                     }
@@ -223,30 +227,90 @@ namespace MVRPlugin
         }
         private void ApplyPose()
         {
-            if (frameObjectRequested || Interlocked.Exchange(ref worker.frameRequest,0)!=0) {
-                frameObjectRequested=false;
-                FrameContainingObject(); reference=0;
+            if (targetAtom == null || SuperController.singleton.isLoading) return;
+            int requestedRevision = Interlocked.Exchange(ref worker.frameRequest, 0);
+            if (requestedRevision == targetRevision) frameObjectRequested = true;
+
+            PoseData pose = worker.Latest();
+            if (pose != null && (pose.revision != targetRevision || Now() - pose.received > .25)) pose = null;
+
+            Quaternion phoneRotation = pose == null
+                ? Quaternion.identity
+                : new Quaternion(-pose.qx, -pose.qy, pose.qz, pose.qw);
+            bool alignHorizons = pose != null && pose.alignHorizons;
+            if (frameObjectRequested || (alignHorizons && alignFrameWhenTrackingRevision == targetRevision))
+            {
+                frameObjectRequested = false;
+                FrameContainingObject(alignHorizons, phoneRotation);
+                // Give an immediate fit without tracking, then fit the aligned view when tracking returns.
+                alignFrameWhenTrackingRevision = pose == null ? targetRevision : 0;
+                worker.origin = null;
             }
-            PoseData pose=worker.Latest();
-            if(pose==null || Now()-pose.received>.25 || pose.hold) { reference=0; return; }
-            if(reference!=pose.reference || (worker.origin!=null && worker.origin.scale!=pose.scale)) { reference=pose.reference; basePosition=capture.transform.position; baseRotation=capture.transform.rotation; worker.origin=pose; return; }
-            PoseData origin=worker.origin;
-            Quaternion oq=new Quaternion(origin.qx,origin.qy,origin.qz,origin.qw);
-            Quaternion q=new Quaternion(pose.qx,pose.qy,pose.qz,pose.qw);
-            Vector3 delta=Quaternion.Inverse(oq)*(new Vector3(pose.x-origin.x,pose.y-origin.y,pose.z-origin.z));
-            Quaternion relative=Quaternion.Inverse(oq)*q;
-            capture.transform.position=basePosition+baseRotation*new Vector3(delta.x,delta.y,-delta.z)*pose.scale;
-            capture.transform.rotation=baseRotation*new Quaternion(-relative.x,-relative.y,relative.z,relative.w);
+            if (pose == null || pose.hold)
+            {
+                worker.origin = null;
+                return;
+            }
+            alignFrameWhenTrackingRevision = 0;
+
+            PoseData origin = worker.origin;
+            if (origin == null || origin.revision != pose.revision || reference != pose.reference || origin.scale != pose.scale
+                || origin.alignHorizons != pose.alignHorizons)
+            {
+                reference = pose.reference;
+                basePosition = capture.transform.position;
+                baseRotation = pose.alignHorizons
+                    ? AlignHeading(phoneRotation, capture.transform.rotation)
+                    : capture.transform.rotation;
+                worker.origin = pose;
+                if (pose.alignHorizons) capture.transform.rotation = baseRotation * phoneRotation;
+                return;
+            }
+
+            Vector3 delta = new Vector3(pose.x - origin.x, pose.y - origin.y, origin.z - pose.z);
+            Quaternion relative = phoneRotation;
+            if (!pose.alignHorizons)
+            {
+                Quaternion inverseOrigin = Quaternion.Inverse(new Quaternion(-origin.qx, -origin.qy, origin.qz, origin.qw));
+                delta = inverseOrigin * delta;
+                relative = inverseOrigin * phoneRotation;
+            }
+            Vector3 position = basePosition + baseRotation * delta * pose.scale;
+            // Finite inputs can still overflow after applying a large scale.
+            if (!float.IsNaN(position.x) && !float.IsInfinity(position.x)
+                && !float.IsNaN(position.y) && !float.IsInfinity(position.y)
+                && !float.IsNaN(position.z) && !float.IsInfinity(position.z))
+            {
+                capture.transform.position = position;
+            }
+            capture.transform.rotation = baseRotation * relative;
         }
-        private void FrameContainingObject()
+
+        private static Quaternion AlignHeading(Quaternion phone, Quaternion view)
         {
-            if(capture==null || containingAtom==null) { Add("Start camera service before framing an object."); return; }
+            return Quaternion.AngleAxis(Heading(view) - Heading(phone), Vector3.up);
+        }
+
+        private static float Heading(Quaternion rotation)
+        {
+            Vector3 forward = rotation * Vector3.forward;
+            if (forward.x * forward.x + forward.z * forward.z < 1e-6f)
+            {
+                // At the poles the forward vector has no heading. Use the screen's right axis.
+                Vector3 right = rotation * Vector3.right;
+                return Mathf.Atan2(-right.z, right.x) * Mathf.Rad2Deg;
+            }
+            return Mathf.Atan2(forward.x, forward.z) * Mathf.Rad2Deg;
+        }
+
+        private void FrameContainingObject(bool alignHorizons, Quaternion phoneRotation)
+        {
             bool found=false; Bounds bounds=new Bounds();
             // Five control landmarks give a cheap rough silhouette; no skin/GPU readback.
             string[] landmarks={"headControl","lFootControl","rFootControl","lHandControl","rHandControl"};
             int landmarkCount=0;
             foreach(string id in landmarks) {
-                FreeControllerV3 controller=containingAtom.GetStorableByID(id) as FreeControllerV3;
+                FreeControllerV3 controller=targetAtom.GetStorableByID(id) as FreeControllerV3;
                 if(controller==null) continue;
                 Vector3 point=controller.control!=null ? controller.control.position : controller.transform.position;
                 if(float.IsNaN(point.x)||float.IsInfinity(point.x)||float.IsNaN(point.y)||float.IsInfinity(point.y)||float.IsNaN(point.z)||float.IsInfinity(point.z))continue;
@@ -260,18 +324,23 @@ namespace MVRPlugin
                 bounds.Expand(padding*2);
             }
             if(!found)
-            foreach(Renderer renderer in containingAtom.GetComponentsInChildren<Renderer>()) {
+            foreach(Renderer renderer in targetAtom.GetComponentsInChildren<Renderer>()) {
                 if(!renderer.enabled || !renderer.gameObject.activeInHierarchy || renderer is ParticleSystemRenderer || renderer is LineRenderer) continue;
                 if((capture.cullingMask & (1<<renderer.gameObject.layer))==0)continue;
                 Bounds rb=renderer.bounds;if(rb.size.magnitude>1000 || rb.size.sqrMagnitude<.000001f)continue;
                 if(!found){bounds=rb;found=true;}else bounds.Encapsulate(rb);
             }
-            if(!found){Add("Frame object: containing atom has no visible geometry. Add PhoneCamera to the object you want to frame.");return;}
-            Transform front=containingAtom.mainController!=null ? containingAtom.mainController.transform : containingAtom.transform;
-            Quaternion rotation=Quaternion.LookRotation(-front.forward,front.up);
+            if(!found) {
+                Vector3 center = targetAtom.mainController != null ? targetAtom.mainController.transform.position : targetAtom.transform.position;
+                bounds = new Bounds(center, Vector3.one);
+                framingNote = "Approximate framing: target has no measurable geometry";
+            } else framingNote = "";
+            Transform front=targetAtom.mainController!=null ? targetAtom.mainController.transform : targetAtom.transform;
+            Quaternion rotation=HasTargetRotation(targetAtom) ? Quaternion.LookRotation(-front.forward,front.up) : capture.transform.rotation;
+            if (alignHorizons) rotation = AlignHeading(phoneRotation, rotation) * phoneRotation;
             float distance=FrameDistance(bounds,rotation,capture.fieldOfView,capture.aspect,capture.nearClipPlane);
             capture.transform.rotation=rotation;capture.transform.position=bounds.center-(rotation*Vector3.forward)*distance;
-            Add("Framed containing object at 90% fit"+(landmarkCount>0 ? " using "+landmarkCount+" body landmarks" : " using renderer bounds")+"; current phone pose becomes the new reference.");
+            Add("Framed target at 90% fit"+(landmarkCount>0 ? " using "+landmarkCount+" body landmarks" : " using renderer bounds")+"; current phone pose becomes the new reference.");
         }
         public static float FrameDistance(Bounds bounds,Quaternion rotation,float verticalFov,float aspect,float near)
         {
@@ -284,7 +353,7 @@ namespace MVRPlugin
             }
             return distance;
         }
-        private class PoseData { public long reference; public double received; public float x,y,z,qx,qy,qz,qw,scale; public bool hold; }
+        private class PoseData { public long reference; public int revision; public double received; public float x,y,z,qx,qy,qz,qw,scale; public bool hold, alignHorizons; }
         private static string Stats(List<double> source, string unit = "ms")
         {
             if (source.Count == 0) return "n=0";
@@ -345,7 +414,7 @@ namespace MVRPlugin
             // render/resolve. Queue readback before reusing this target for another frame.
             capture.enabled = false;
             awaitingCapture = false;
-            Readback item = new Readback(); item.started = captureStarted;
+            Readback item = new Readback(); item.started = captureStarted; item.revision = captureTargetRevision;
             item.request = AsyncGPUReadback.Request(target, 0, TextureFormat.RGBA32);
             requests.Enqueue(item); submitted++;
         }
@@ -467,14 +536,15 @@ namespace MVRPlugin
                         continue;
                     }
                     if(peer==null || !from.Equals(peer)) continue;
-                    if(data.Length==64 && data[0]==80 && data[1]==67 && data[2]==80 && data[3]==49 && BitConverter.ToUInt32(data,4)==run)
+                    if(data.Length==72 && data[0]==80 && data[1]==67 && data[2]==80 && data[3]==50 && BitConverter.ToUInt32(data,4)==run)
                     {
-                        PoseData p=new PoseData(); p.reference=BitConverter.ToInt64(data,16); p.received=Now();
+                        if(BitConverter.ToInt32(data,64)!=owner.targetInstance || BitConverter.ToInt32(data,68)!=owner.targetRevision) continue;
+                        PoseData p=new PoseData(); p.revision=BitConverter.ToInt32(data,68); p.reference=BitConverter.ToInt64(data,16); p.received=Now();
                         float[] v=new float[8]; bool valid=true;
                         for(int n=0;n<8;n++) { v[n]=BitConverter.ToSingle(data,24+n*4); if(float.IsNaN(v[n])||float.IsInfinity(v[n])) valid=false; }
                         float norm=v[3]*v[3]+v[4]*v[4]+v[5]*v[5]+v[6]*v[6];
                         long seq=BitConverter.ToInt64(data,8);
-                        if(valid && norm>.9f && norm<1.1f && v[7]>.01f && v[7]<=10 && seq>lastPose) { lastPose=seq; int command=BitConverter.ToInt32(data,60); if(command!=lastFrameRequest) { lastFrameRequest=command; Interlocked.Exchange(ref frameRequest,1); } p.x=v[0];p.y=v[1];p.z=v[2];p.qx=v[3];p.qy=v[4];p.qz=v[5];p.qw=v[6];p.scale=v[7];p.hold=data[56]!=0; lock(gate) latest=p; heartbeat=Now(); }
+                        if(valid && norm>.9f && norm<1.1f && v[7]>=.02f && v[7]<=25f && seq>lastPose) { lastPose=seq; int command=BitConverter.ToInt32(data,60); if(command!=lastFrameRequest) { lastFrameRequest=command; Interlocked.Exchange(ref frameRequest,p.revision); } p.x=v[0];p.y=v[1];p.z=v[2];p.qx=v[3];p.qy=v[4];p.qz=v[5];p.qw=v[6];p.scale=v[7];p.hold=data[56]!=0; p.alignHorizons=data[57]==1; lock(gate) latest=p; heartbeat=Now(); }
                         continue;
                     }
                     if(data.Length==12 && data[0]==80 && data[1]==66 && data[2]==65 && data[3]==49 && BitConverter.ToUInt32(data,4)==run)
@@ -504,16 +574,18 @@ namespace MVRPlugin
                             if(count<=0) throw new Exception("JPEG encoder returned no bytes");
                             uint seq;
                             lock(gate) { seq=(uint)encoded++; jpegSizes.Add(count); encodeTimes.Add((encodedAt-began)*1000); ageTimes.Add((encodedAt-frame.started)*1000); awaiting[seq]=frame.started; if(awaiting.Count>128) awaiting.Clear(); if(encodeTimes.Count>300) { encodeTimes.Clear(); jpegSizes.Clear(); ageTimes.Clear(); sendTimes.Clear(); ackTimes.Clear(); } }
-                            const int chunk=1172;
+                            if(frame.revision != owner.targetRevision) continue;
+                            const int chunk=1164;
                             int fragments=(count+chunk-1)/chunk;
-                            byte[] packet=new byte[1200]; packet[0]=80;packet[1]=67;packet[2]=70;packet[3]=49;
+                            byte[] packet=new byte[1200]; packet[0]=80;packet[1]=67;packet[2]=70;packet[3]=50;
                             Put(packet,4,BitConverter.GetBytes(run)); Put(packet,8,BitConverter.GetBytes(seq));
                             Put(packet,14,BitConverter.GetBytes((ushort)fragments)); Put(packet,16,BitConverter.GetBytes(count)); Put(packet,20,BitConverter.GetBytes(frame.started));
+                            Put(packet,28,BitConverter.GetBytes(owner.targetInstance)); Put(packet,32,BitConverter.GetBytes(frame.revision));
                             for(int n=0;n<fragments && !stop;n++)
                             {
                                 int length=Math.Min(chunk,count-n*chunk);
-                                Put(packet,12,BitConverter.GetBytes((ushort)n)); Array.Copy(encoder.OutputBuffer,n*chunk,packet,28,length);
-                                socket.Send(packet,28+length,peer);
+                                Put(packet,12,BitConverter.GetBytes((ushort)n)); Array.Copy(encoder.OutputBuffer,n*chunk,packet,36,length);
+                                socket.Send(packet,36+length,peer);
                                 lock(gate) packets++;
                                 if(n%32==31) Poll();
                             }

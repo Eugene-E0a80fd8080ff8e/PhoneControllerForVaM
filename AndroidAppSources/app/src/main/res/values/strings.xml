@@ -3,39 +3,31 @@
     <string name="title_activity_settings">Settings</string>
 
 
-    <string name="pref_header_network">Network Settings</string>
-    <string name="pref_title_network_port">Port</string>
-    <string name="pref_description_network_port">The UDP port which will be used for incoming and outgoung communication with VAM plugin. 62701 is the default value. The port must be open in firewall if you use one.</string>
-    <string-array name="pref_network_port_titles">
-        <item>62701 (default)</item>
-        <item>62702</item>
-        <item>62703</item>
-        <item>62704</item>
-        <item>62705</item>
-        <item>62706</item>
-        <item>62707</item>
-        <item>62708</item>
-        <item>62709</item>
-        <item>62710</item>
-        <item>62711</item>
-        <item>62712</item>
+    <string name="title_joints">Joints</string>
+    <string name="title_camera">Camera</string>
+    <string name="pref_section_common">Common</string>
+    <string name="pref_startup_page">Open on startup</string>
+    <string-array name="startup_page_titles">
+        <item>@string/title_camera</item>
+        <item>@string/title_joints</item>
     </string-array>
-    <string-array name="pref_network_port_values">
-        <item>62701</item>
-        <item>62702</item>
-        <item>62703</item>
-        <item>62704</item>
-        <item>62705</item>
-        <item>62706</item>
-        <item>62707</item>
-        <item>62708</item>
-        <item>62709</item>
-        <item>62710</item>
-        <item>62711</item>
-        <item>62712</item>
+    <string-array name="startup_page_values">
+        <item>camera</item>
+        <item>joints</item>
     </string-array>
+    <string name="pref_vam_host">VaM host</string>
+    <string name="pref_host_automatic">Automatic discovery</string>
+    <string name="pref_host_hint">Enter the VaM computer’s hostname or IP address. Leave blank for automatic discovery.</string>
+    <string name="pref_title_network_port">UDP port</string>
+    <string name="pref_title_network_freq">Joint update rate</string>
+    <string name="pref_align_horizons">Keep VaM and real horizons aligned</string>
+    <string name="pref_align_horizons_summary">Use the phone’s tilt relative to gravity</string>
+    <string name="pref_scale_presets">Position scale presets</string>
+    <string name="pref_scale_presets_hint">Enter scales from 0.02x to 25x, separated by commas. For example, 0.6, 1, 3, 10.</string>
+    <string name="pref_scale_presets_invalid">Enter one or more scales from 0.02x to 25x, separated by commas.</string>
+    <string name="camera_scale_accessibility">Position scale %1$s</string>
+    <string name="camera_permission_required">Camera permission is required for tracking. Tap Start to try again.</string>
 
-    <string name="pref_title_network_freq">Update frequency</string>
     <string-array name="pref_network_freq_titles">
         <item>30 Hz</item>
         <item>60 Hz (default)</item>
@@ -121,11 +113,12 @@
     <string name="pref_ringtone_silent">Silent</string>
 
     <string name="pref_title_vibrate">Vibrate</string>
-    <string name="title_activity_controller_settings">Controller Settings</string>
 
 
-    <string name="hold_or_toggle_title">Hold vs toggle buttons</string>
-    <string name="hold_or_toggle_summary">You need to hold button to move joint</string>
+    <string name="hold_or_toggle_title">Toggle joint buttons</string>
+    <string name="hold_or_toggle_summary">Hold a button to move its joint</string>
+
+    <string name="hold_or_toggle_enabled">Tap a button to start or stop moving its joint</string>
 
     <string name="controller_face_to_face_title">Face-to-face button layout</string>
     <string name="controller_face_to_face_summary">Place the model’s right-side buttons on your left, and left-side buttons on your right. Labels follow the buttons.</string>

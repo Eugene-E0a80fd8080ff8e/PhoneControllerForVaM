@@ -31,6 +31,27 @@ import java.util.TreeMap;
 
 public class MainActivity extends AppCompatActivity implements StateManager.StateListener
 ,SharedPreferences.OnSharedPreferenceChangeListener {
+    private TargetBar targetBar;
+    private int displayedTargetRevision, displayedTargetInstance;
+    private void updateTargetAvailability() {
+        TargetConnection.State target = TargetConnection.state;
+        boolean enabled = TargetConnection.canControl();
+        int revision = target == null ? 0 : target.revision;
+        int instance = target == null ? 0 : target.instance;
+        if (!enabled || revision != displayedTargetRevision || instance != displayedTargetInstance) {
+            buttonsPressed = 0;
+            sendKeyboardState();
+            updateButtonColors();
+        }
+        TargetConnection.armController(enabled ? target : null);
+        displayedTargetRevision = revision;
+        displayedTargetInstance = instance;
+        for (int id : button2bit.keySet()) findViewById(id).setEnabled(enabled);
+        Switch position = findViewById(R.id.switchPositionTracking);
+        position.setEnabled(enabled);
+        if (!enabled && position.isChecked()) position.setChecked(false);
+    }
+
 
     SensorThread sensor = null;
     CommunicationThread communication = null;
@@ -68,6 +89,9 @@ public class MainActivity extends AppCompatActivity implements StateManager.Stat
         }
 
         ////////////////
+
+        targetBar = new TargetBar(this, true, this::updateTargetAvailability);
+        ((android.widget.LinearLayout)findViewById(R.id.targetContainer)).addView(targetBar);
 
         int[] buttons = new int[] {
                 R.id.buttonEngageHead,
@@ -134,16 +158,16 @@ public class MainActivity extends AppCompatActivity implements StateManager.Stat
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        if (item.getItemId()==R.id.invoke_camera_page) { startActivity(new Intent(this, CameraActivity.class)); return true; }
-        if( R.id.invoke_settings_page == item.getItemId() )
-        {
-            //Toast.makeText(this, "Settings page", Toast.LENGTH_SHORT).show();
-            Intent intent = new Intent(this, SettingsActivity.class);
+        if (item.getItemId() == R.id.invoke_camera_page) {
+            Intent intent = new Intent(this, CameraActivity.class);
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
             startActivity(intent);
-
             return true;
         }
-
+        if (item.getItemId() == R.id.invoke_settings_page) {
+            startActivity(new Intent(this, SettingsActivity.class));
+            return true;
+        }
         return super.onOptionsItemSelected(item);
     }
 
@@ -280,12 +304,15 @@ public class MainActivity extends AppCompatActivity implements StateManager.Stat
     @Override protected void onResume() {
         super.onResume();
         activityResumed = true;
+        targetBar.start();
+        updateTargetAvailability();
         updateControllerSides();
         if (positionRequested) startPositionTracking();
     }
 
     @Override protected void onPause() {
         activityResumed = false;
+        if (targetBar != null) targetBar.stop();
         stopPositionTracking();
         super.onPause();
     }
@@ -375,6 +402,8 @@ public class MainActivity extends AppCompatActivity implements StateManager.Stat
     private View.OnTouchListener btnTouch = new View.OnTouchListener() {
         @Override
         public boolean onTouch(View v, MotionEvent event) {
+            updateTargetAvailability();
+            if (!TargetConnection.canControl()) return true;
             Button b = (Button)v;
             int action = event.getAction();
             if (action == MotionEvent.ACTION_DOWN)

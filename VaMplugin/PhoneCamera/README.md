@@ -6,10 +6,14 @@ Both body control and camera streaming share UDP 62701; the phone page selects
 which traffic to send. Remove old standalone instances when upgrading.
 
 Install the Android debug APK, open **Camera** in the toolbar, and press Start.
-The app requests camera permission/ARCore services as needed. Leave Camera settings
-host blank for LAN broadcast discovery, or set it to the VaM host address
-(e.g. 192.168.12.1 on the Ubuntu hotspot). Settings are separate from controller
-preferences. Position scale accepts 0.02–10, default 1. The camera UI stays in portrait. On connection the phone requests an even-sized
+The app requests camera permission and ARCore services as needed. In **Settings → Common**,
+leave the VaM host blank for LAN discovery or enter the host address.
+
+Tap the scale over the camera image to select a preset. Edit the list under
+**Settings → Camera → Position scale presets**. Scales range from 0.02x to 25x,
+and the active scale starts at 1x.
+
+The camera UI stays in portrait. On connection the phone requests an even-sized
 image matching its video viewport, at approximately the previous 640x360 pixel
 budget. VaM renders at that aspect ratio rather than cropping a landscape image.
 JPEG quality 75 and requested 30 fps remain fixed, with UI layers excluded.
@@ -31,15 +35,15 @@ All integers/floats little-endian. Session is server-assigned uint32, nonzero.
   Both sides must be updated; older greetings are deliberately rejected.
   Size bounds: 128–1024 per axis and at most 300000 pixels. Negotiation is fixed
   for the session; changing the viewport size takes effect on the next Start.
-- Pose: 64 bytes: `PCP1`, session at 4, int64 increasing sequence at 8, int64
+- Pose: 72 bytes: `PCP2`, session at 4, int64 increasing sequence at 8, int64
   reference at 16, eight float32 values at 24 (x,y,z,qx,qy,qz,qw,scale), held byte
-  at 56, reserved zero bytes through 63. Position is meters in the ARCore anchor
+  at 56, horizon alignment at 57, reserved bytes 58–59, frame command at 60, plugin instance at 64 and target revision at 68. Position is meters in the ARCore anchor
   frame; orientation is relative to that same anchor. The server computes relative
   motion against the first received pose for each reference and maps handedness
   using basis diag(1,1,-1). Pose packets expire after 250 ms.
-- JPEG fragment: 28-byte header `PCF1`, session uint32, frame uint32, fragment
-  index/count uint16, total bytes int32, opaque sender timestamp double. Payload
-  is up to 1172 bytes. Max datagram payload 1200 bytes.
+- JPEG fragment: 36-byte header `PCF2`, session uint32, frame uint32, fragment
+  index/count uint16, total bytes int32, opaque sender timestamp double, plugin instance int32 and target revision int32. Payload
+  is up to 1164 bytes. Max datagram payload 1200 bytes.
 - Decoded feedback: `PBA1`, session uint32, frame uint32 (12 bytes).
 
 This initial protocol has fixed settings, no encryption, no Internet exposure,
@@ -69,12 +73,13 @@ replaceable latest pending JPEG, and one replaceable pending image for the UI.
 Stopping closes the pending-work queue without waiting on the Android UI thread.
 Session/generation checks discard results from an old connection.
 
-The phone's **Frame object** button (and VaM's **Frame containing object**) places
-the virtual camera on the containing atom's front side, aimed at its bounds center.
+The phone's **Frame object** button (and VaM's **Frame target**) places
+the virtual camera on the selected atom's front side, aimed at its bounds center.
 Its perspective fit reserves 5% on each edge, fitting within 90% of both width and
 height; whichever dimension limits the fit wins. It uses the current stream aspect
-ratio/FOV. Put the plugin on the Person or visible object to frame. An Empty atom
-has no visible bounds: a diagnostic is logged and the camera stays put.
+ratio/FOV. Choose a target for session/scene plugins, or attach the plugin to the desired atom.
+An Empty atom uses a one-unit bounding cube as an approximate framing size.
+Targets without a usable rotation control retain the current viewing direction.
 For people, framing uses head, left/right foot and left/right hand controller
 positions, with padding for the crown, fingers and soles. It does not read skin
 vertices or GPU buffers. This is a rough fit: large hairstyles/accessories or
@@ -82,8 +87,8 @@ extreme poses may extend outside the estimate. Objects without these landmarks
 use ordinary enabled Renderer bounds. Animated poses can move outside the initial
 framing afterward.
 
-**World scale** on the phone adjusts translation from 0.02 to 10 VaM units per
-physical meter (default 1). Rotation is unaffected. Scale is saved and applied live;
+**World scale** on the phone sets the number of VaM units per physical meter
+(default 1). Rotation is unaffected. Scale is saved and applied live;
 the server rebases on changes so the current view does not jump. Framing likewise
 rebases against the next phone pose, including while Hold is active.
 
@@ -97,4 +102,4 @@ The VaM service starts listening as soon as the plugin loads. Opening the Androi
 camera page starts tracking and connection automatically, after its layout is ready.
 Start and Stop remain available. An explicit phone Stop stays stopped when returning
 from settings/background; Start re-enables automatic resume. Leaving the page pauses
-tracking and network resources. The original controller is still the app launch page.
+tracking and network resources. Camera opens by default. Change the startup page in Settings.

@@ -17,7 +17,7 @@ import com.google.ar.core.TrackingState;
 
 import java.util.UUID;
 
-/** Owns an offscreen GL context and ARCore session for position-only tracking. */
+/** Owns an offscreen GL context and ARCore session for camera pose tracking. */
 final class CameraPoseTracker {
     interface Listener { void status(String message); }
     static final class Sample {
@@ -30,6 +30,7 @@ final class CameraPoseTracker {
     }
     static volatile Sample sample;
     private final Session session;
+    private final boolean alignHorizons;
     private final Listener listener;
     private volatile boolean running;
     volatile boolean stopped;
@@ -39,7 +40,11 @@ final class CameraPoseTracker {
     }
     private Thread thread;
 
-    CameraPoseTracker(Session session, Listener listener) { this.session = session; this.listener = listener; }
+    CameraPoseTracker(Session session, boolean alignHorizons, Listener listener) {
+        this.session = session;
+        this.alignHorizons = alignHorizons;
+        this.listener = listener;
+    }
     void start() { running = true; thread = new Thread(this::run, "ARCore position"); thread.start(); }
     void stop() {
         running = false;
@@ -83,14 +88,22 @@ final class CameraPoseTracker {
                 Frame frame = session.update();
                 String status;
                 if (frame.getCamera().getTrackingState() == TrackingState.TRACKING) {
+                    Pose camera = frame.getCamera().getDisplayOrientedPose();
                     if (anchor == null) {
-                        // Anchor axes match the displayed view, not the physical camera sensor orientation.
-                        Pose origin = frame.getCamera().getDisplayOrientedPose();
+                        Pose origin = alignHorizons ? camera.extractTranslation() : camera;
                         anchor = session.createAnchor(origin);
                         reference = UUID.randomUUID().getMostSignificantBits();
                     }
                     if (anchor.getTrackingState() == TrackingState.TRACKING) {
-                        Pose relative = anchor.getPose().inverse().compose(frame.getCamera().getDisplayOrientedPose());
+                        Pose anchorPose = anchor.getPose();
+                        if (alignHorizons) {
+                            // Keep the anchor's position and heading, with ARCore world +Y as up.
+                            float[] forward = anchorPose.getZAxis();
+                            double halfYaw = Math.atan2(forward[0], forward[2]) * 0.5;
+                            Pose yaw = Pose.makeRotation(0, (float) Math.sin(halfYaw), 0, (float) Math.cos(halfYaw));
+                            anchorPose = anchorPose.extractTranslation().compose(yaw);
+                        }
+                        Pose relative = anchorPose.inverse().compose(camera);
                         sample = new Sample(reference, relative.tx(), relative.ty(), relative.tz(), relative.qx(), relative.qy(), relative.qz(), relative.qw());
                         status = "Position: tracking";
                     } else {

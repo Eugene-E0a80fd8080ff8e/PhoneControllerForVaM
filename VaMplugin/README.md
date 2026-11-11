@@ -7,15 +7,15 @@ Camera capture begins when a phone requests it and stops after its lease expires
 
 ## Installation / upgrade
 
-1. Copy `PhoneController.cs`, `PhoneController.cslist`, and the `PhoneCamera` folder
+1. Copy `PhoneController.cs`, `TargetService.cs`, `PhoneController.cslist`, and the `PhoneCamera` folder
    together into `VaM/Custom/Scripts/PhoneControllerForVaM/`.
 2. Remove the previously loaded standalone PhoneController and PhoneCamera plugins
    from the atom. Both would compete for resources with the combined version.
-3. Add **PhoneController.cslist** on the Person/object you want to control or frame.
+3. Add **PhoneController.cslist** as a session plugin, scene plugin, or on the Person/object you want to control or frame.
    The `.cs` is now one part of the plugin; load the `.cslist` entry instead.
 4. Enable plugin network access. Allow UDP 62701 through the host firewall.
-5. Install the matching updated Android APK. Controller remains the launch page;
-   switch to Camera in its toolbar for the camera view. No port 62711 is needed.
+5. Install the matching updated Android APK. Camera opens by default.
+   Use the toolbar to switch to Joints, or change the startup page in Settings.
 
 The shared socket retains the original server beacon and movement parser. Camera
 message families are routed to a bounded worker inbox and never enter the body
@@ -46,3 +46,23 @@ Camera negotiation still uses `PCCHELLO2` / `PCA2`; it is separate from the smal
 controller discovery probe. The phone remembers the accepted camera server address
 for subsequent controller discovery. An explicit host setting takes precedence.
 All of this uses the same receiver on UDP 62701.
+
+## Target selection
+
+Install the matching APK and plugin sources together. Both pages show the plugin
+installation kind and current atom. Session and scene installations expose a
+searchable target selector. Atom installations use their containing atom.
+Selection frames the target and establishes a new phone-pose reference. A selection
+made while the camera is stopped is framed when it next starts. Hold stays active.
+
+Controller buttons are available only for a confirmed Person target. The app shows
+an explanation above disabled buttons for other atoms, missing targets and connection
+loss. VaM also rejects body movement for non-Person targets and stale target revisions.
+Changing targets clears pressed buttons and movement baselines on both ends.
+
+Session/scene installations initially require selection. Scene loading clears that
+selection. Renaming retains atom identity, while deletion/recreation gets a new ID.
+One active plugin instance per VaM process owns UDP 62701.
+
+See [target protocol](../docs/TARGET_PROTOCOL.md) for target discovery, paging and
+movement/video version changes. Old raw body packets are rejected by this version.

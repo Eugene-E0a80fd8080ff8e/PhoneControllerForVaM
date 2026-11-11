@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
@@ -115,6 +115,7 @@ namespace MVRPlugin
                         catch(SocketException) { if(terminateFlag)break; }
                         data=null;
                     }
+                    if (data != null && RouteTargetDatagram(data, remoteIP)) data = null;
                     if (data != null && RouteCameraDatagram(data, remoteIP)) data = null;
                     if (data != null)
                     {
@@ -167,6 +168,7 @@ namespace MVRPlugin
                 */
 
                 if (thread != null && thread.IsAlive) return;
+                InitializeTargets();
                 InitializeCameraService();
                 terminateFlag = false;
                 thread = new Thread(new ThreadStart(TrFunc));
@@ -288,15 +290,15 @@ namespace MVRPlugin
             {
                 if (0 != (keysPressed & 1)) // head
                 {
-                    FreeControllerV3 control = (FreeControllerV3)containingAtom.GetStorableByID("headControl");
+                    FreeControllerV3 control = (FreeControllerV3)targetAtom.GetStorableByID("headControl");
                     control.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * control.transform.rotation));
 
                 }
 
                 if (0 != (keysPressed & 2)) // neck
                 {
-                    FreeControllerV3 head = (FreeControllerV3)containingAtom.GetStorableByID("headControl");
-                    FreeControllerV3 neck = (FreeControllerV3)containingAtom.GetStorableByID("neckControl");
+                    FreeControllerV3 head = (FreeControllerV3)targetAtom.GetStorableByID("headControl");
+                    FreeControllerV3 neck = (FreeControllerV3)targetAtom.GetStorableByID("neckControl");
                     neck.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * neck.transform.rotation));
                     head.transform.position = neck.transform.position + worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * (head.transform.position - neck.transform.position));
                     head.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * head.transform.rotation));
@@ -304,27 +306,27 @@ namespace MVRPlugin
 
                 if (0 != (keysPressed & (1 << 8))) // lHand
                 {
-                    FreeControllerV3 control = (FreeControllerV3)containingAtom.GetStorableByID("lHandControl");
+                    FreeControllerV3 control = (FreeControllerV3)targetAtom.GetStorableByID("lHandControl");
                     control.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * control.transform.rotation));
                 }
                 if (0 != (keysPressed & (1 << 9))) // rHand
                 {
-                    FreeControllerV3 control = (FreeControllerV3)containingAtom.GetStorableByID("rHandControl");
+                    FreeControllerV3 control = (FreeControllerV3)targetAtom.GetStorableByID("rHandControl");
                     control.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * control.transform.rotation));
                 }
 
                 if (0 != (keysPressed & (1 << 10))) // lElbow
                 {
-                    FreeControllerV3 elbow = (FreeControllerV3)containingAtom.GetStorableByID("lElbowControl");
-                    FreeControllerV3 hand = (FreeControllerV3)containingAtom.GetStorableByID("lHandControl");
+                    FreeControllerV3 elbow = (FreeControllerV3)targetAtom.GetStorableByID("lElbowControl");
+                    FreeControllerV3 hand = (FreeControllerV3)targetAtom.GetStorableByID("lHandControl");
                     elbow.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * elbow.transform.rotation));
                     hand.transform.position = elbow.transform.position + worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * (hand.transform.position - elbow.transform.position));
                     hand.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * hand.transform.rotation));
                 }
                 if (0 != (keysPressed & (1 << 11))) // rElbow
                 {
-                    FreeControllerV3 elbow = (FreeControllerV3)containingAtom.GetStorableByID("rElbowControl");
-                    FreeControllerV3 hand = (FreeControllerV3)containingAtom.GetStorableByID("rHandControl");
+                    FreeControllerV3 elbow = (FreeControllerV3)targetAtom.GetStorableByID("rElbowControl");
+                    FreeControllerV3 hand = (FreeControllerV3)targetAtom.GetStorableByID("rHandControl");
                     elbow.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * elbow.transform.rotation));
                     hand.transform.position = elbow.transform.position + worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * (hand.transform.position - elbow.transform.position));
                     hand.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * hand.transform.rotation));
@@ -332,9 +334,9 @@ namespace MVRPlugin
 
                 if (0 != (keysPressed & (1 << 12))) // lArm
                 {
-                    FreeControllerV3 arm = (FreeControllerV3)containingAtom.GetStorableByID("lArmControl");
-                    FreeControllerV3 elbow = (FreeControllerV3)containingAtom.GetStorableByID("lElbowControl");
-                    FreeControllerV3 hand = (FreeControllerV3)containingAtom.GetStorableByID("lHandControl");
+                    FreeControllerV3 arm = (FreeControllerV3)targetAtom.GetStorableByID("lArmControl");
+                    FreeControllerV3 elbow = (FreeControllerV3)targetAtom.GetStorableByID("lElbowControl");
+                    FreeControllerV3 hand = (FreeControllerV3)targetAtom.GetStorableByID("lHandControl");
                     arm.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * arm.transform.rotation));
                     elbow.transform.position = arm.transform.position + worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * (elbow.transform.position - arm.transform.position));
                     elbow.RotateTo( worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * elbow.transform.rotation));
@@ -343,9 +345,9 @@ namespace MVRPlugin
                 }
                 if (0 != (keysPressed & (1 << 13))) // lArm
                 {
-                    FreeControllerV3 arm = (FreeControllerV3)containingAtom.GetStorableByID("rArmControl");
-                    FreeControllerV3 elbow = (FreeControllerV3)containingAtom.GetStorableByID("rElbowControl");
-                    FreeControllerV3 hand = (FreeControllerV3)containingAtom.GetStorableByID("rHandControl");
+                    FreeControllerV3 arm = (FreeControllerV3)targetAtom.GetStorableByID("rArmControl");
+                    FreeControllerV3 elbow = (FreeControllerV3)targetAtom.GetStorableByID("rElbowControl");
+                    FreeControllerV3 hand = (FreeControllerV3)targetAtom.GetStorableByID("rHandControl");
                     arm.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * arm.transform.rotation));
                     elbow.transform.position = arm.transform.position + worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * (elbow.transform.position - arm.transform.position));
                     elbow.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * elbow.transform.rotation));
@@ -356,12 +358,12 @@ namespace MVRPlugin
 
                 if (0 != (keysPressed & (1 << 16))) // hip
                 {
-                    FreeControllerV3 control = (FreeControllerV3)containingAtom.GetStorableByID("hipControl");
+                    FreeControllerV3 control = (FreeControllerV3)targetAtom.GetStorableByID("hipControl");
                     control.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * control.transform.rotation));
                 }
                 if (0 != (keysPressed & (1 << 17))) // chest
                 {
-                    FreeControllerV3 chest = (FreeControllerV3)containingAtom.GetStorableByID("chestControl");
+                    FreeControllerV3 chest = (FreeControllerV3)targetAtom.GetStorableByID("chestControl");
                     chest.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * chest.transform.rotation));
 
                     string[] arr = new string[] {
@@ -373,7 +375,7 @@ namespace MVRPlugin
                     };
                     foreach (string t in arr)
                     {
-                        FreeControllerV3 fc = (FreeControllerV3)containingAtom.GetStorableByID(t);
+                        FreeControllerV3 fc = (FreeControllerV3)targetAtom.GetStorableByID(t);
                         fc.transform.position = chest.transform.position + worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * (fc.transform.position - chest.transform.position));
                         fc.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * fc.transform.rotation));
                     }
@@ -382,35 +384,35 @@ namespace MVRPlugin
 
                 if (0 != (keysPressed & (1 << 24))) // lFoot
                 {
-                    FreeControllerV3 control = (FreeControllerV3)containingAtom.GetStorableByID("lFootControl");
+                    FreeControllerV3 control = (FreeControllerV3)targetAtom.GetStorableByID("lFootControl");
                     control.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * control.transform.rotation));
                 }
                 if (0 != (keysPressed & (1 << 25))) // rFoot
                 {
-                    FreeControllerV3 control = (FreeControllerV3)containingAtom.GetStorableByID("rFootControl");
+                    FreeControllerV3 control = (FreeControllerV3)targetAtom.GetStorableByID("rFootControl");
                     control.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * control.transform.rotation));
                 }
                 if (0 != (keysPressed & (1 << 26))) // lKnee
                 {
-                    FreeControllerV3 knee = (FreeControllerV3)containingAtom.GetStorableByID("lKneeControl");
-                    FreeControllerV3 foot = (FreeControllerV3)containingAtom.GetStorableByID("lFootControl");
+                    FreeControllerV3 knee = (FreeControllerV3)targetAtom.GetStorableByID("lKneeControl");
+                    FreeControllerV3 foot = (FreeControllerV3)targetAtom.GetStorableByID("lFootControl");
                     knee.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * knee.transform.rotation));
                     foot.transform.position = knee.transform.position + worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * (foot.transform.position - knee.transform.position));
                     foot.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * foot.transform.rotation));
                 }
                 if (0 != (keysPressed & (1 << 27))) // rKnee
                 {
-                    FreeControllerV3 knee = (FreeControllerV3)containingAtom.GetStorableByID("rKneeControl");
-                    FreeControllerV3 foot = (FreeControllerV3)containingAtom.GetStorableByID("rFootControl");
+                    FreeControllerV3 knee = (FreeControllerV3)targetAtom.GetStorableByID("rKneeControl");
+                    FreeControllerV3 foot = (FreeControllerV3)targetAtom.GetStorableByID("rFootControl");
                     knee.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * knee.transform.rotation));
                     foot.transform.position = knee.transform.position + worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * (foot.transform.position - knee.transform.position));
                     foot.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * foot.transform.rotation));
                 }
                 if (0 != (keysPressed & (1 << 28))) // lThigh
                 {
-                    FreeControllerV3 thigh = (FreeControllerV3)containingAtom.GetStorableByID("lThighControl");
-                    FreeControllerV3 knee = (FreeControllerV3)containingAtom.GetStorableByID("lKneeControl");
-                    FreeControllerV3 foot = (FreeControllerV3)containingAtom.GetStorableByID("lFootControl");
+                    FreeControllerV3 thigh = (FreeControllerV3)targetAtom.GetStorableByID("lThighControl");
+                    FreeControllerV3 knee = (FreeControllerV3)targetAtom.GetStorableByID("lKneeControl");
+                    FreeControllerV3 foot = (FreeControllerV3)targetAtom.GetStorableByID("lFootControl");
                     thigh.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * thigh.transform.rotation));
                     knee.transform.position = thigh.transform.position + worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * (knee.transform.position - thigh.transform.position));
                     knee.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * knee.transform.rotation));
@@ -419,9 +421,9 @@ namespace MVRPlugin
                 }
                 if (0 != (keysPressed & (1 << 29))) // rThigh
                 {
-                    FreeControllerV3 thigh = (FreeControllerV3)containingAtom.GetStorableByID("rThighControl");
-                    FreeControllerV3 knee = (FreeControllerV3)containingAtom.GetStorableByID("rKneeControl");
-                    FreeControllerV3 foot = (FreeControllerV3)containingAtom.GetStorableByID("rFootControl");
+                    FreeControllerV3 thigh = (FreeControllerV3)targetAtom.GetStorableByID("rThighControl");
+                    FreeControllerV3 knee = (FreeControllerV3)targetAtom.GetStorableByID("rKneeControl");
+                    FreeControllerV3 foot = (FreeControllerV3)targetAtom.GetStorableByID("rFootControl");
                     thigh.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * thigh.transform.rotation));
                     knee.transform.position = thigh.transform.position + worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * (knee.transform.position - thigh.transform.position));
                     knee.RotateTo(worldRot * (Quaternion.Inverse((Quaternion)prevWorldRot) * knee.transform.rotation));
@@ -495,8 +497,8 @@ namespace MVRPlugin
                     continue;
                 }
                 if ((positionBlocked & bit) != 0) continue;
-                FreeControllerV3 control = (FreeControllerV3)containingAtom.GetStorableByID(positionControls[i]);
-                FreeControllerV3 parent = (FreeControllerV3)containingAtom.GetStorableByID(positionParents[i]);
+                FreeControllerV3 control = (FreeControllerV3)targetAtom.GetStorableByID(positionControls[i]);
+                FreeControllerV3 parent = (FreeControllerV3)targetAtom.GetStorableByID(positionParents[i]);
                 if (control == null || parent == null) continue;
                 if ((positionActive & bit) == 0) {
                     positionStart[i] = control.transform.position;
@@ -633,6 +635,7 @@ namespace MVRPlugin
         // Update is called with each rendered frame by Unity
         void Update()
         {
+            UpdateTargets();
             string error = receiverError;
             if (error != null)
             {
@@ -662,7 +665,7 @@ namespace MVRPlugin
                     dataChannel.Clear();
                 }
                 while (queue.Count > 0)
-                    processPacket((byte[])queue.Dequeue());
+                    ProcessTargetMovement((byte[])queue.Dequeue());
 
             }
             catch (Exception e)
@@ -688,6 +691,7 @@ namespace MVRPlugin
         // if you registered objects to supercontroller or atom, you should unregister them here
         void OnDestroy()
         {
+            CleanupTargets();
             StopCameraService();
             StopReceiver();
         }

@@ -45,8 +45,8 @@ public class CommunicationThread implements Runnable {
         }
         thr=null;
 
-        for (DatagramSocket socket : sockets.values()) socket.close();
-        sockets.clear();
+        if (socket != null) socket.close();
+        socket = null;
         clients_lastSeen.clear();
 
         StateManager.update( (state) -> { state.clientsList = ""; return state; });
@@ -75,34 +75,28 @@ public class CommunicationThread implements Runnable {
     }
 
 
-    private TreeMap<Integer,DatagramSocket> sockets = new TreeMap<Integer,DatagramSocket>();
-    private DatagramSocket getSocket()
-    {
-        Context context = MyApplication.getAppContext();
-        SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(context);
-        String port = sp.getString("network_port","62701");
-        int iport = Integer.parseInt(port);
+    private DatagramSocket socket;
 
-        if( ! sockets.containsKey(iport) ) {
+    private DatagramSocket getSocket() {
+        if (socket == null) {
             try {
-                sockets.put(iport, new DatagramSocket(iport) );
-                sockets.get(iport).setSoTimeout(1);
-                sockets.get(iport).setBroadcast(true);
-            }catch(SocketException e) {
-                Log.d("CommunicationThread", "Socket Exception");
-                throw new AssertionError("A socket was not created\n" + e.toString());
+                socket = new DatagramSocket(AppPreferences.VAM_PORT);
+                socket.setSoTimeout(1);
+                socket.setBroadcast(true);
+            } catch (SocketException error) {
+                if (socket != null) socket.close();
+                socket = null;
+                throw new IllegalStateException("Could not open the VaM UDP socket", error);
             }
         }
-
-        return sockets.get(iport);
-
+        return socket;
     }
 
     @Override
     public void run() {
 
         long timeStart = System.currentTimeMillis();
-        byte [] buffer = new byte[1024];
+        byte [] buffer = new byte[4096];
         byte [] receiveBuffer = new byte[1024];
         long lastDiscovery = 0;
 
@@ -115,19 +109,21 @@ public class CommunicationThread implements Runnable {
                 byte[] probe = new byte[]{(byte)0xfe};
                 try {
                     discoverySocket.send(new DatagramPacket(probe, 1,
-                            InetAddress.getByName("255.255.255.255"), discoverySocket.getLocalPort()));
+                            InetAddress.getByName("255.255.255.255"), AppPreferences.VAM_PORT));
                 } catch (IOException e) { Log.d("CommunicationThread", "Broadcast discovery: " + e.getMessage()); }
-                SharedPreferences cameraPreferences = MyApplication.getAppContext().getSharedPreferences("phone_camera", Context.MODE_PRIVATE);
-                String host = cameraPreferences.getString("host", "").trim();
-                if (host.isEmpty()) host = cameraPreferences.getString("last_server", "");
+                SharedPreferences connection = AppPreferences.connectionAndCamera(MyApplication.getAppContext());
+                String host = connection.getString(AppPreferences.VAM_HOST, "").trim();
+                if (host.isEmpty()) host = connection.getString(AppPreferences.LAST_SERVER, "");
                 if (!host.isEmpty()) {
                     try {
                         discoverySocket.send(new DatagramPacket(probe, 1,
-                                InetAddress.getByName(host), discoverySocket.getLocalPort()));
+                                InetAddress.getByName(host), AppPreferences.VAM_PORT));
                     } catch (IOException e) { Log.d("CommunicationThread", "Direct discovery: " + e.getMessage()); }
                 }
             }
 
+            TargetConnection.State movementTarget = TargetConnection.state;
+            boolean movementReady = TargetConnection.canSendController(movementTarget);
             ArrayList<SensorDatum> llsd = new ArrayList<>();
 
             SensorDatum datum;
@@ -187,9 +183,12 @@ public class CommunicationThread implements Runnable {
 
                 try {
 
-                    for(String ia : clients_lastSeen.keySet() ) {
-                        DatagramPacket dp = new DatagramPacket(buffer, bb.position(), InetAddress.getByName(ia), socket.getLocalPort());
-                        socket.send(dp);
+                    TargetConnection.State target = movementTarget;
+                    if (movementReady && TargetConnection.canSendController(target)) {
+                        byte[] movement = ByteBuffer.allocate(bb.position() + 12).order(ByteOrder.LITTLE_ENDIAN)
+                                .put(new byte[]{80,67,77,50}).putInt(target.instance).putInt(target.revision)
+                                .put(buffer,0,bb.position()).array();
+                        socket.send(new DatagramPacket(movement, movement.length, target.address, AppPreferences.VAM_PORT));
                     }
 
                 } catch (UnknownHostException e) {
@@ -238,8 +237,6 @@ public class CommunicationThread implements Runnable {
 
         //System.out.println("communication thread exited");
 
-        for (DatagramSocket socket : sockets.values()) socket.close();
-        sockets.clear();
         clients_lastSeen.clear();
 
         StateManager.update( (state) -> { state.clientsList = ""; return state; });

@@ -17,42 +17,25 @@
         android:theme="@style/AppTheme">
         <meta-data android:name="com.google.ar.core" android:value="optional" />
         <activity
-            android:name=".MainActivity"
-            android:configChanges="keyboardHidden|orientation"
+            android:name=".LauncherActivity"
             android:exported="true"
-            android:screenOrientation="portrait">
+            android:theme="@style/Theme.AppCompat.Light.NoActionBar">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name=".CameraActivity" android:label="Camera" android:screenOrientation="portrait" />
-        <activity android:name=".CameraSettingsActivity" android:label="Camera settings" />
         <activity
-            android:name=".SettingsActivity"
-            android:label="@string/title_activity_settings"
-            android:parentActivityName=".MainActivity">
-            <meta-data
-                android:name="android.support.PARENT_ACTIVITY"
-                android:value="local.movementtrackerforvam.movementtrackerforvam.MainActivity" />
-        </activity>
+            android:name=".MainActivity"
+            android:configChanges="keyboardHidden|orientation"
+            android:label="@string/title_joints"
+            android:screenOrientation="portrait" />
         <activity
-            android:name=".AzimuthSetup"
-            android:label="Azimuth Setup"
-            android:parentActivityName=".MainActivity">
-            <meta-data
-                android:name="android.support.PARENT_ACTIVITY"
-                android:value="local.movementtrackerforvam.movementtrackerforvam.MainActivity" />
-        </activity>
-        <activity
-            android:name=".ControllerSettings"
-            android:label="@string/title_activity_controller_settings"
-            android:parentActivityName=".MainActivity">
-            <meta-data
-                android:name="android.support.PARENT_ACTIVITY"
-                android:value="MainActivity" />
-        </activity>
+            android:name=".CameraActivity"
+            android:label="@string/title_camera"
+            android:screenOrientation="portrait" />
+        <activity android:name=".SettingsActivity" android:label="@string/title_activity_settings" />
+        <activity android:name=".AzimuthSetup" android:label="@string/azimuth_setup_title" />
     </application>
 
 </manifest>

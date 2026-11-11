@@ -2,15 +2,19 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
-    <item android:id="@+id/invoke_camera_page" android:title="Camera" app:showAsAction="always" />
-    <item android:id="@+id/invoke_settings_page"
+    <item
+        android:id="@+id/invoke_camera_page"
+        android:title="@string/title_camera"
+        app:showAsAction="always" />
+    <item
+        android:id="@+id/invoke_joints_page"
+        android:title="@string/title_joints"
+        android:visible="false"
+        app:showAsAction="always" />
+    <item
+        android:id="@+id/invoke_settings_page"
         android:icon="@drawable/ic_settings_white_24dp"
-        android:title="Settings"
-        app:showAsAction="always"
-
-        android:visible="true"
-        />
-
-
+        android:title="@string/title_activity_settings"
+        app:showAsAction="always" />
 
 </menu>
