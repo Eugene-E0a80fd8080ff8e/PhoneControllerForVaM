@@ -16,6 +16,11 @@ final class AppPreferences {
     static final String VAM_HOST = "host";
     static final String LAST_SERVER = "last_server";
     static final String ALIGN_HORIZONS = "align_horizons";
+    static final String GRAB_MODE = "grab_mode";
+    static final String GRAB_RADIUS = "grab_radius_percent";
+    static final String DEFAULT_GRAB_RADIUS = "5";
+    static final String SHOW_CAMERA_GRAB = "show_camera_grab";
+    static final String SHOW_CAMERA_PICTURE = "show_camera_picture";
     static final String CAMERA_RESOLUTION = "camera_resolution";
     static final String POSITION_SCALE = "scale";
     static final String SCALE_PRESETS = "scale_presets";
@@ -28,6 +33,20 @@ final class AppPreferences {
     static SharedPreferences connectionAndCamera(Context context) {
         // Keep the existing store so upgrades retain the host and position scale.
         return context.getSharedPreferences("phone_camera", Context.MODE_PRIVATE);
+    }
+
+    static float readGrabRadius(SharedPreferences preferences) {
+        try {
+            return parseGrabRadius(preferences.getString(GRAB_RADIUS, DEFAULT_GRAB_RADIUS));
+        } catch (IllegalArgumentException invalid) {
+            return parseGrabRadius(DEFAULT_GRAB_RADIUS);
+        }
+    }
+
+    static float parseGrabRadius(String text) {
+        float percent = Float.parseFloat(text.trim().replace(',', '.'));
+        if (!(percent >= 1 && percent <= 50)) throw new IllegalArgumentException("Grab radius out of range");
+        return percent;
     }
 
     static float readPositionScale(Context context) {

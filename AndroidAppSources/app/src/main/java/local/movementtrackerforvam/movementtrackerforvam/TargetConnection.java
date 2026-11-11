@@ -34,8 +34,8 @@ public final class TargetConnection {
     }
 
     public static final class State {
-        public final int instance, revision, catalog, target;
-        public final boolean selectable, control, position, rotation, loading;
+        public final int instance, revision, catalog, target, cameraGrabVersion;
+        public final boolean selectable, control, position, rotation, loading, cameraGrab, cameraGrabModes, cameraGrabRotationOff, cameraGrabHeadOnly;
         public final String name, type, installation, framing;
         public final InetAddress address;
         public final long received;
@@ -47,6 +47,11 @@ public final class TargetConnection {
             target = json.optInt("target");
             selectable = json.optBoolean("selectable");
             control = json.optBoolean("control");
+            cameraGrab = json.optBoolean("cameraGrab");
+            cameraGrabModes = json.optBoolean("cameraGrabModes");
+            cameraGrabRotationOff = json.optBoolean("cameraGrabRotationOff");
+            cameraGrabHeadOnly = json.optBoolean("cameraGrabHeadOnly");
+            cameraGrabVersion = json.optInt("cameraGrabVersion", 3);
             loading = json.optBoolean("loading");
             position = json.optBoolean("position");
             rotation = json.optBoolean("rotation");

@@ -38,6 +38,28 @@
         <item>640</item>
         <item>720</item>
     </string-array>
+    <string name="pref_camera_grab">Show Grab button</string>
+    <string name="pref_camera_grab_summary">Highlight a grab point near the center of the live view</string>
+    <string name="pref_camera_grab_radius">Grab catch radius</string>
+    <string name="pref_camera_grab_radius_hint">Enter a percentage from 1 to 50 of the image’s shorter edge.</string>
+    <string name="pref_camera_grab_radius_value">%1$s%% of the image’s shorter edge</string>
+    <string name="pref_camera_grab_radius_invalid">Enter a catch radius from 1 to 50 percent.</string>
+    <string name="camera_grab_show_points">Show or hide eligible grab points</string>
+    <string name="camera_grab_pos">Pos</string>
+    <string name="camera_grab_rot">Rot</string>
+    <string name="camera_grab_pos_rot">Pos&amp;Rot</string>
+    <string name="camera_grab_pos_relax">Pos&amp;Relax</string>
+    <string name="camera_grab_head_only">Head Only</string>
+    <string name="camera_grab_mode_label">Grab mode %1$s</string>
+    <string name="camera_grab">Grab</string>
+    <string name="pref_camera_picture">Show Take picture button</string>
+    <string name="pref_camera_picture_summary">Save the current VaM image to the phone’s photo library</string>
+    <string name="camera_take_picture">Take picture</string>
+    <string name="camera_picture_no_frame">Wait for a camera image before taking a picture.</string>
+    <string name="camera_picture_saved">Picture saved to Photos.</string>
+    <string name="camera_picture_failed">Could not save the picture.</string>
+    <string name="camera_picture_permission_required">Allow storage access to save pictures to Photos.</string>
+    <string name="camera_grab_hint">Hold to grab the highlighted point</string>
     <string name="camera_target_show_all">Show all</string>
     <string name="camera_live">Live</string>
     <string name="camera_live_description">Live · %1$d × %2$d pixels</string>

@@ -1,6 +1,7 @@
 package local.movementtrackerforvam.movementtrackerforvam;
 
 import android.content.Context;
+import android.text.TextUtils;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -9,13 +10,19 @@ import static local.movementtrackerforvam.movementtrackerforvam.CameraOverlayBut
 
 class CameraOverlayMenu extends LinearLayout {
     private final boolean showChevron;
-    private final Button toggle;
+    private final CameraOverlayButton toggle;
+    private final boolean opensUpward;
     private final ScrollView viewport;
     private final LinearLayout actions;
     private boolean expanded;
 
     CameraOverlayMenu(Context context, int gravity, boolean showChevron) {
+        this(context, gravity, showChevron, false);
+    }
+
+    CameraOverlayMenu(Context context, int gravity, boolean showChevron, boolean opensUpward) {
         super(context);
+        this.opensUpward = opensUpward;
         setOrientation(VERTICAL);
         setGravity(gravity);
         this.showChevron = showChevron;
@@ -28,7 +35,7 @@ class CameraOverlayMenu extends LinearLayout {
 
         viewport = new ScrollView(context);
         viewport.setVisibility(GONE);
-        addView(viewport, new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT));
+        addView(viewport, opensUpward ? 0 : 1, new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT));
 
         actions = new LinearLayout(context);
         actions.setOrientation(VERTICAL);
@@ -48,8 +55,25 @@ class CameraOverlayMenu extends LinearLayout {
     }
 
     void setToggleLabel(CharSequence text, CharSequence description) {
-        toggle.setText(text);
-        toggle.setContentDescription(description);
+        if (!TextUtils.equals(toggle.getText(), text)) toggle.setText(text);
+        if (!TextUtils.equals(toggle.getContentDescription(), description)) toggle.setContentDescription(description);
+    }
+
+    Button actionWithTag(Object tag) {
+        return actions.findViewWithTag(tag);
+    }
+
+    void showSelection(Button selected) {
+        toggle.showSelected(true);
+        for (int i = 0; i < actions.getChildCount(); i++) {
+            CameraOverlayButton action = (CameraOverlayButton) actions.getChildAt(i);
+            action.showSelected(action == selected);
+        }
+    }
+
+    void setToggleEnabled(boolean enabled) {
+        if (!enabled) collapse();
+        toggle.setEnabled(enabled);
     }
 
     void clearActions() {
@@ -71,7 +95,7 @@ class CameraOverlayMenu extends LinearLayout {
         expanded = open;
         updateToggle();
         actions.animate().cancel();
-        float slide = -dp(getContext(), 48);
+        float slide = dp(getContext(), 48) * (opensUpward ? 1 : -1);
         if (open) {
             if (viewport.getVisibility() == GONE) {
                 actions.setTranslationY(slide);

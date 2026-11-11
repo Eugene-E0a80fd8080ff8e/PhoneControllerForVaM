@@ -2,6 +2,7 @@ package local.movementtrackerforvam.movementtrackerforvam;
 
 import android.content.Context;
 import android.view.Gravity;
+import android.widget.Button;
 
 import java.util.function.Consumer;
 
@@ -16,12 +17,17 @@ final class PositionScaleControl extends CameraOverlayMenu {
     void setScales(float scale, float[] available) {
         clearActions();
         setCurrentScale(scale);
+        Button selected = null;
         for (float preset : available) {
-            addAction(AppPreferences.scaleNumber(preset) + "x", () -> {
+            Button button = addAction(AppPreferences.scaleNumber(preset) + "x", () -> {
                 onScaleSelected.accept(preset);
                 setCurrentScale(preset);
+                showSelection(actionWithTag(preset));
             });
+            button.setTag(preset);
+            if (preset == scale) selected = button;
         }
+        showSelection(selected);
     }
 
     private void setCurrentScale(float scale) {

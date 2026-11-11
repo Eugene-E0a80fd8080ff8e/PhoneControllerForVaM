@@ -7,7 +7,7 @@ public static class PacketRoutingTest
 {
     public static void Main()
     {
-        byte[][] camera={Encoding.ASCII.GetBytes("PCCHELLO2"),Encoding.ASCII.GetBytes("PCP1"),Encoding.ASCII.GetBytes("PBA1")};
+        byte[][] camera={Encoding.ASCII.GetBytes("PCCHELLO2"),Encoding.ASCII.GetBytes("PCCHELLO3"),Encoding.ASCII.GetBytes("PCP1"),Encoding.ASCII.GetBytes("PCP3"),Encoding.ASCII.GetBytes("PCP4"),Encoding.ASCII.GetBytes("PBA1")};
         foreach(byte[] packet in camera) if(!PhoneController.IsCameraPacket(packet))throw new Exception("Camera family was sent to legacy parser");
         byte[][] legacy={new byte[]{255},new byte[]{33,1,0},new byte[]{0},new byte[0],Encoding.ASCII.GetBytes("PCX1")};
         foreach(byte[] packet in legacy) if(PhoneController.IsCameraPacket(packet))throw new Exception("Legacy/unknown packet was intercepted");

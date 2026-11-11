@@ -17,6 +17,7 @@ namespace MVRPlugin
         private int catalogRevision = 1, nextAtomId = 1;
         private double nextCatalogCheck;
         private bool targetSceneLoading;
+        private bool initialTargetPending;
         private readonly Dictionary<Atom, int> atomIds = new Dictionary<Atom, int>();
         private readonly List<Atom> targetCatalog = new List<Atom>();
         private string catalogSignature = "";
@@ -34,6 +35,7 @@ namespace MVRPlugin
             installation = containingAtom != null && (containingAtom == sessionHost || kind == "SessionPluginManager")
                 ? "session" : containingAtom == null || kind == "CoreControl" || kind == "ScenePluginManager" ? "scene" : "atom";
             selectableTarget = installation != "atom";
+            initialTargetPending = selectableTarget;
             targetAtom = selectableTarget ? null : containingAtom;
             RefreshTargetCatalog();
             activeTargetId = targetAtom != null && atomIds.ContainsKey(targetAtom) ? atomIds[targetAtom] : 0;
@@ -47,6 +49,7 @@ namespace MVRPlugin
             targetCatalog.Clear();
             catalogRevision++;
             ChangeTarget(selectableTarget ? null : containingAtom);
+            initialTargetPending = selectableTarget;
             nextCatalogCheck = 0;
         }
 
@@ -91,7 +94,7 @@ namespace MVRPlugin
                 if (!atomIds.ContainsKey(atom)) atomIds.Add(atom, nextAtomId++);
                 targetCatalog.Add(atom);
             }
-            targetCatalog.Sort(delegate(Atom a, Atom b) { return string.Compare(a.uid, b.uid, StringComparison.Ordinal); });
+            targetCatalog.Sort(delegate(Atom a, Atom b) { return CompareAtomNames(a.uid, b.uid); });
             StringBuilder signature = new StringBuilder();
             foreach (Atom atom in targetCatalog) signature.Append(atomIds[atom]).Append(':').Append(atom.uid).Append(':').Append(atom.type).Append('|');
             if (signature.ToString() != catalogSignature) { catalogSignature = signature.ToString(); catalogRevision++; }
@@ -99,10 +102,44 @@ namespace MVRPlugin
             if ((targetAtom != null && !atoms.Contains(targetAtom)) || (targetAtom == null && activeTargetId != 0)) ChangeTarget(null);
         }
 
+        private static int CompareAtomNames(string left, string right)
+        {
+            left = left ?? "";
+            right = right ?? "";
+            int a = 0, b = 0;
+            while (a < left.Length && b < right.Length)
+            {
+                if (IsAsciiDigit(left[a]) && IsAsciiDigit(right[b]))
+                {
+                    int endA = a, endB = b;
+                    while (endA < left.Length && IsAsciiDigit(left[endA])) endA++;
+                    while (endB < right.Length && IsAsciiDigit(right[endB])) endB++;
+                    while (a < endA - 1 && left[a] == '0') a++;
+                    while (b < endB - 1 && right[b] == '0') b++;
+                    int lengthOrder = (endA - a).CompareTo(endB - b);
+                    if (lengthOrder != 0) return lengthOrder;
+                    int numberOrder = string.CompareOrdinal(left, a, right, b, endA - a);
+                    if (numberOrder != 0) return numberOrder;
+                    a = endA;
+                    b = endB;
+                }
+                else
+                {
+                    int letterOrder = char.ToUpperInvariant(left[a++]).CompareTo(char.ToUpperInvariant(right[b++]));
+                    if (letterOrder != 0) return letterOrder;
+                }
+            }
+            int endOrder = (left.Length - a).CompareTo(right.Length - b);
+            return endOrder != 0 ? endOrder : string.CompareOrdinal(left, right);
+        }
+
+        private static bool IsAsciiDigit(char value) { return value >= '0' && value <= '9'; }
+
         private int activeTargetId;
         private void ChangeTarget(Atom atom)
         {
             targetAtom = atom;
+            if (atom != null) initialTargetPending = false;
             activeTargetId = atom != null && atomIds.ContainsKey(atom) ? atomIds[atom] : 0;
             targetRevision++;
             keysPressed = 0;
@@ -129,7 +166,14 @@ namespace MVRPlugin
                     JSONNode query = JSON.Parse(Encoding.UTF8.GetString(request.bytes, 4, request.bytes.Length - 4));
                     string error = "";
                     int requestId = query["request"].AsInt;
-                    if (query["op"].Value == "select") {
+                    string operation = query["op"].Value;
+                    if (operation == "state" && initialTargetPending && !loading)
+                    {
+                        initialTargetPending = false;
+                        Atom firstPerson = targetCatalog.Find(delegate(Atom atom) { return atom != null && atom.type == "Person"; });
+                        if (targetAtom == null && firstPerson != null) ChangeTarget(firstPerson);
+                    }
+                    if (operation == "select") {
                         Atom selected = targetCatalog.Find(delegate(Atom a) { return atomIds[a] == query["target"].AsInt; });
                         if (loading) error = "Scene is loading";
                         else if (!selectableTarget) error = "This plugin targets its containing atom";
@@ -147,6 +191,11 @@ namespace MVRPlugin
                     state["selectable"].AsBool = selectableTarget && !loading;
                     state["loading"].AsBool = loading;
                     state["control"].AsBool = CanControlTarget;
+                    state["cameraGrab"].AsBool = true;
+                    state["cameraGrabVersion"].AsInt = 4;
+                    state["cameraGrabModes"].AsBool = true;
+                    state["cameraGrabRotationOff"].AsBool = true;
+                    state["cameraGrabHeadOnly"].AsBool = true;
                     state["position"].AsBool = targetAtom != null;
                     state["rotation"].AsBool = HasTargetRotation(targetAtom);
                     state["target"].AsInt = targetAtom != null && atomIds.ContainsKey(targetAtom) ? atomIds[targetAtom] : 0;

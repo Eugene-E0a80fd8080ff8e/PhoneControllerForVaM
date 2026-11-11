@@ -50,6 +50,27 @@
     </PreferenceCategory>
 
     <PreferenceCategory android:title="@string/title_camera">
+        <SwitchPreference
+            android:key="show_camera_grab"
+            android:defaultValue="true"
+            android:title="@string/pref_camera_grab"
+            android:summary="@string/pref_camera_grab_summary" />
+
+        <EditTextPreference
+            android:key="grab_radius_percent"
+            android:title="@string/pref_camera_grab_radius"
+            android:dialogMessage="@string/pref_camera_grab_radius_hint"
+            android:defaultValue="5"
+            android:inputType="numberDecimal"
+            android:singleLine="true"
+            android:dependency="show_camera_grab" />
+
+        <SwitchPreference
+            android:key="show_camera_picture"
+            android:defaultValue="false"
+            android:title="@string/pref_camera_picture"
+            android:summary="@string/pref_camera_picture_summary" />
+
         <ListPreference
             android:key="camera_resolution"
             android:title="@string/pref_camera_resolution"

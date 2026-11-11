@@ -24,6 +24,17 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
         findPreference("vam_port").setSummary(Integer.toString(AppPreferences.VAM_PORT));
         findPreference("azimuth_setup").setIntent(new Intent(this, AzimuthSetup.class));
 
+        EditTextPreference radius = (EditTextPreference) findPreference(AppPreferences.GRAB_RADIUS);
+        showGrabRadius(radius, AppPreferences.readGrabRadius(radius.getSharedPreferences()));
+        radius.setOnPreferenceChangeListener((preference, value) -> {
+            try {
+                showGrabRadius(radius, AppPreferences.parseGrabRadius(value.toString()));
+            } catch (IllegalArgumentException invalid) {
+                Toast.makeText(this, R.string.pref_camera_grab_radius_invalid, Toast.LENGTH_SHORT).show();
+            }
+            return false; // The normalized value is saved by setText.
+        });
+
         SharedPreferences preferences = AppPreferences.connectionAndCamera(this);
         EditTextPreference host = (EditTextPreference) findPreference(AppPreferences.VAM_HOST);
         host.setText(preferences.getString(AppPreferences.VAM_HOST, "").trim());
@@ -51,6 +62,12 @@ public class SettingsActivity extends AppCompatPreferenceActivity {
             }
             return false; // The validated list is saved in the camera preferences.
         });
+    }
+
+    private void showGrabRadius(EditTextPreference preference, float percent) {
+        String value = AppPreferences.scaleNumber(percent);
+        preference.setText(value);
+        preference.setSummary(getString(R.string.pref_camera_grab_radius_value, value));
     }
 
     private void updateHostSummary(EditTextPreference host) {

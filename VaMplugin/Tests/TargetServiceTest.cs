@@ -73,9 +73,10 @@ namespace MVRPlugin
         public static void Main()
         {
             Atom host = new Atom { uid="CoreControl", type="CoreControl" };
-            Atom person = new Atom { uid="Person", type="Person" };
+            Atom person = new Atom { uid="person2", type="Person" };
+            Atom laterPerson = new Atom { uid="Person10", type="Person" };
             Atom prop = new Atom { uid="Chair", type="Asset" };
-            SuperController.singleton.atoms.AddRange(new Atom[] { host, person, prop });
+            SuperController.singleton.atoms.AddRange(new Atom[] { host, laterPerson, prop, person });
             PhoneController plugin = new PhoneController { containingAtom=host };
             plugin.InitializeTargets();
             Assert(plugin.selectableTarget && plugin.installation == "scene", "Scene host not detected");
@@ -85,8 +86,9 @@ namespace MVRPlugin
                 client.Client.ReceiveTimeout = 1000;
                 int originalRevision = plugin.targetRevision;
                 int personId = plugin.atomIds[person];
-                JSONNode selected = plugin.Request(client, "select", personId, originalRevision, 1);
-                Assert(selected["control"].AsBool && plugin.frameObjectRequested, "Person was not selected and framed");
+                JSONNode selected = plugin.Request(client, "state", 0, 0, 0);
+                Assert(selected["target"].AsInt == personId && selected["control"].AsBool && plugin.frameObjectRequested,
+                    "First connection did not select and frame person2 before Person10");
                 int selectedRevision = plugin.targetRevision;
                 plugin.frameObjectRequested = false;
                 plugin.Request(client, "select", personId, originalRevision, 1);
@@ -97,6 +99,8 @@ namespace MVRPlugin
                 plugin.keysPressed = 255;
                 plugin.Request(client, "select", plugin.atomIds[prop], selectedRevision, 2);
                 Assert(!plugin.CanControlTarget && plugin.keysPressed == 0, "Prop switch retained body input");
+                plugin.Request(client, "state", 0, 0, 0);
+                Assert(plugin.targetAtom == prop, "A state query replaced the selected prop");
                 plugin.ProcessTargetMovement(plugin.Movement(plugin.targetRevision));
                 Assert(plugin.acceptedMovement == 1, "Prop accepted body input");
                 plugin.Request(client, "select", personId, originalRevision, 1);

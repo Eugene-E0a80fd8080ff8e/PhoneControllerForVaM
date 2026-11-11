@@ -636,6 +636,7 @@ namespace MVRPlugin
         void Update()
         {
             UpdateTargets();
+            ExpireCameraGrab();
             string error = receiverError;
             if (error != null)
             {
@@ -689,6 +690,8 @@ namespace MVRPlugin
 
         // OnDestroy is where you should put any cleanup
         // if you registered objects to supercontroller or atom, you should unregister them here
+        void OnDisable() { ResetGrabView(); }
+
         void OnDestroy()
         {
             CleanupTargets();

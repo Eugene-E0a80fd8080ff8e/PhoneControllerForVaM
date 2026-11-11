@@ -10,6 +10,8 @@ import android.view.Gravity;
 import android.widget.Button;
 
 final class CameraOverlayButton extends Button {
+    private static final int DEFAULT_COLOR = 0xDF17212B;
+    private static final int SELECTED_COLOR = 0xFF1556A0;
     CameraOverlayButton(Context context) {
         super(context);
         setAllCaps(false);
@@ -22,8 +24,16 @@ final class CameraOverlayButton extends Button {
         setStateListAnimator(null);
         setBackgroundTintList(null);
 
-        setBackground(background(context, 0xDF17212B, true));
+        setBackground(background(context, DEFAULT_COLOR, true));
         setPadding(dp(context, 8), 0, dp(context, 8), 0);
+    }
+
+    void showSelected(boolean selected) {
+        if (isSelected() == selected) return;
+        setSelected(selected);
+        setBackground(background(getContext(), selected ? SELECTED_COLOR : DEFAULT_COLOR, true));
+        int padding = dp(getContext(), 8);
+        setPadding(padding, 0, padding, 0);
     }
 
     static InsetDrawable background(Context context, int color, boolean ripple) {

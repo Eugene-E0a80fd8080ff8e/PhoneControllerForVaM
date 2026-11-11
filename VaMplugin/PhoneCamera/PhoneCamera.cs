@@ -24,7 +24,7 @@ namespace MVRPlugin
         private volatile UdpClient sharedCameraSocket;
         protected void SetCameraSocket(UdpClient socket) { sharedCameraSocket=socket; }
         public static bool IsCameraPacket(byte[] data) { return data!=null && (data.Length>=4 && data[0]==80 &&
-                ((data[1]==67 && ((data[2]==67 && data[3]==72) || (data[2]==80 && (data[3]==49 || data[3]==50)))) ||
+                ((data[1]==67 && ((data[2]==67 && data[3]==72) || (data[2]==80 && (data[3]==49 || data[3]==50 || data[3]==51 || data[3]==52)))) ||
                  (data[1]==66 && data[2]==65 && data[3]==49))); }
         protected bool RouteCameraDatagram(byte[] data,IPEndPoint from)
         {
@@ -41,6 +41,8 @@ namespace MVRPlugin
         private bool running, cancelled;
         private double captureStarted, captureScheduled;
         private int captureTargetRevision;
+        private PoseData capturePose;
+        private GrabMarker captureGrabMarker;
         private bool awaitingCapture, captureRendered;
         private int pixelChecks, blackPixelChecks;
         private string captureError;
@@ -51,8 +53,8 @@ namespace MVRPlugin
         private readonly List<double> frameMs = new List<double>();
         private readonly List<double> baselineMs = new List<double>();
         private static double Now() { return Stopwatch.GetTimestamp() / (double)Stopwatch.Frequency; }
-        private class Readback { public AsyncGPUReadbackRequest request; public double started; public int revision; }
-        private class Frame { public byte[] pixels; public double started; public int revision; }
+        private class Readback { public AsyncGPUReadbackRequest request; public double started; public int revision; public GrabMarker grab; }
+        private class Frame { public byte[] pixels; public double started; public int revision; public GrabMarker grab; }
 
         private void InitializeCameraService()
         {
@@ -96,6 +98,7 @@ namespace MVRPlugin
                 if (!more) break;
                 yield return steps.Current;
             }
+            ReleaseCameraGrab();
             DisableCapture();
             if (worker != null) worker.Stop(); // no Join on Unity thread
             // Normal completion/Stop drains only this plugin's outstanding GPU requests.
@@ -186,7 +189,7 @@ namespace MVRPlugin
                         data.CopyTo(pixels);
                         // First three frames only; included in copy/queue timing.
                         if (pixelChecks < 3) CheckPixels(pixels);
-                        worker.Submit(new Frame { pixels = pixels, started = item.started, revision = item.revision });
+                        worker.Submit(new Frame { pixels = pixels, started = item.started, revision = item.revision, grab = item.grab });
                     }
                     catch { worker.Return(pixels); throw; }
                     copyMs.Add((Now()-copyStart)*1000);
@@ -199,7 +202,8 @@ namespace MVRPlugin
                     if (requests.Count >= 3 || awaitingCapture) skipped++;
                     else
                     {
-                        ApplyPose();
+                        capturePose = ApplyPose();
+                        UpdateCameraGrab(worker, capturePose);
                         captureTargetRevision = targetRevision;
                         captureScheduled = Now(); captureRendered = false; awaitingCapture = true;
                         capture.enabled = true; // Keep enabled until the next frame, after final target resolve.
@@ -225,9 +229,9 @@ namespace MVRPlugin
             while (Now() < deadline) yield return null;
             Add("Camera copies basic look-camera settings, not VaM postprocessing/scripts. Inspect receiver preview for fidelity.");
         }
-        private void ApplyPose()
+        private PoseData ApplyPose()
         {
-            if (targetAtom == null || SuperController.singleton.isLoading) return;
+            if (targetAtom == null || SuperController.singleton.isLoading) return null;
             int requestedRevision = Interlocked.Exchange(ref worker.frameRequest, 0);
             if (requestedRevision == targetRevision) frameObjectRequested = true;
 
@@ -241,6 +245,7 @@ namespace MVRPlugin
             if (frameObjectRequested || (alignHorizons && alignFrameWhenTrackingRevision == targetRevision))
             {
                 frameObjectRequested = false;
+                ResetGrabView();
                 FrameContainingObject(alignHorizons, phoneRotation);
                 // Give an immediate fit without tracking, then fit the aligned view when tracking returns.
                 alignFrameWhenTrackingRevision = pose == null ? targetRevision : 0;
@@ -249,7 +254,7 @@ namespace MVRPlugin
             if (pose == null || pose.hold)
             {
                 worker.origin = null;
-                return;
+                return null;
             }
             alignFrameWhenTrackingRevision = 0;
 
@@ -257,6 +262,7 @@ namespace MVRPlugin
             if (origin == null || origin.revision != pose.revision || reference != pose.reference || origin.scale != pose.scale
                 || origin.alignHorizons != pose.alignHorizons)
             {
+                ResetGrabView();
                 reference = pose.reference;
                 basePosition = capture.transform.position;
                 baseRotation = pose.alignHorizons
@@ -264,7 +270,7 @@ namespace MVRPlugin
                     : capture.transform.rotation;
                 worker.origin = pose;
                 if (pose.alignHorizons) capture.transform.rotation = baseRotation * phoneRotation;
-                return;
+                return pose;
             }
 
             Vector3 delta = new Vector3(pose.x - origin.x, pose.y - origin.y, origin.z - pose.z);
@@ -276,14 +282,10 @@ namespace MVRPlugin
                 relative = inverseOrigin * phoneRotation;
             }
             Vector3 position = basePosition + baseRotation * delta * pose.scale;
-            // Finite inputs can still overflow after applying a large scale.
-            if (!float.IsNaN(position.x) && !float.IsInfinity(position.x)
-                && !float.IsNaN(position.y) && !float.IsInfinity(position.y)
-                && !float.IsNaN(position.z) && !float.IsInfinity(position.z))
-            {
-                capture.transform.position = position;
-            }
             capture.transform.rotation = baseRotation * relative;
+            if (!FiniteGrabPosition(position)) return null;
+            capture.transform.position = position;
+            return pose;
         }
 
         private static Quaternion AlignHeading(Quaternion phone, Quaternion view)
@@ -353,7 +355,7 @@ namespace MVRPlugin
             }
             return distance;
         }
-        private class PoseData { public long reference; public int revision; public double received; public float x,y,z,qx,qy,qz,qw,scale; public bool hold, alignHorizons; }
+        private class PoseData { public long reference; public int revision; public double received; public float x,y,z,qx,qy,qz,qw,scale; public bool hold, alignHorizons, grabEnabled, showGrabHints; public int frameCommand, grabGesture; public uint grabFrame; public float grabRadius = DefaultGrabRadius; public int grabMode = GrabPosition; }
         private static string Stats(List<double> source, string unit = "ms")
         {
             if (source.Count == 0) return "n=0";
@@ -393,6 +395,9 @@ namespace MVRPlugin
         {
             if (camera != capture) return;
             captureStarted = Now();
+            Worker active = worker;
+            captureGrabMarker = active != null && active.grabProtocol
+                ? CaptureGrabMarker(active, capturePose) : null;
         }
         private void CapturePostRender(Camera camera)
         {
@@ -414,7 +419,7 @@ namespace MVRPlugin
             // render/resolve. Queue readback before reusing this target for another frame.
             capture.enabled = false;
             awaitingCapture = false;
-            Readback item = new Readback(); item.started = captureStarted; item.revision = captureTargetRevision;
+            Readback item = new Readback(); item.started = captureStarted; item.revision = captureTargetRevision; item.grab = captureGrabMarker;
             item.request = AsyncGPUReadback.Request(target, 0, TextureFormat.RGBA32);
             requests.Enqueue(item); submitted++;
         }
@@ -469,7 +474,7 @@ namespace MVRPlugin
         }
         protected void StopCameraService()
         {
-            cancelled=true; DisableCapture(); StopAllCoroutines(); if (worker != null) worker.Stop();
+            cancelled=true; ReleaseCameraGrab(); DisableCapture(); StopAllCoroutines(); if (worker != null) worker.Stop();
             // Avoid freeing a texture still referenced by the GPU, without blocking reload.
             // Exceptional mid-readback removal retains one target until scene/application cleanup.
             if ((requests.Count > 0 || awaitingCapture) && target != null)
@@ -490,15 +495,37 @@ namespace MVRPlugin
             public readonly uint run = (uint)new System.Random().Next(1, int.MaxValue);
             private volatile bool stop; private long lastPose=-1;
             public int frameRequest; private int lastFrameRequest;
+            private volatile int protocolVersion = 2;
+            public bool grabProtocol { get { return protocolVersion >= 3; } }
+            public int lastGrabGesture; // Unity main thread only.
+            private const int GrabHistorySize = 64;
+            private struct GrabOfferFrame
+            {
+                public uint id;
+                public int revision;
+                public double started;
+                public GrabMarker marker;
+            }
+            private readonly GrabOfferFrame[] grabOffers = new GrabOfferFrame[GrabHistorySize];
+
+            public GrabMarker FindGrabOffer(uint id, int revision)
+            {
+                lock (gate)
+                {
+                    GrabOfferFrame offer = grabOffers[id % GrabHistorySize];
+                    return offer.id == id && offer.revision == revision
+                        && Now() - offer.started <= GrabOfferTimeout ? offer.marker : null;
+                }
+            }
             public int width, height; private readonly int quality;
             private readonly object gate = new object();
             private readonly Stack<byte[]> pool = new Stack<byte[]>();
             private Frame pending;
             private UdpClient socket;
             public PhoneController owner;
-            private class Datagram { public byte[] data; public IPEndPoint from; }
+            private class Datagram { public byte[] data; public IPEndPoint from; public double received; }
             private readonly Queue<Datagram> inbox=new Queue<Datagram>();
-            public void Enqueue(byte[] data,IPEndPoint from) { lock(gate) { if(inbox.Count>=128)inbox.Dequeue(); inbox.Enqueue(new Datagram { data=data,from=from }); } }
+            public void Enqueue(byte[] data,IPEndPoint from) { lock(gate) { if(inbox.Count>=128)inbox.Dequeue(); inbox.Enqueue(new Datagram { data=data, from=from, received=Now() }); } }
             private IPEndPoint peer;
             private int encoded, sent, packets, replaced, acked;
             private long bytes;
@@ -517,34 +544,71 @@ namespace MVRPlugin
                 {
                     Datagram packet; lock(gate) { if(inbox.Count==0)break; packet=inbox.Dequeue(); }
                     IPEndPoint from=packet.from; byte[] data=packet.data;
-                    if(data.Length==13 && Encoding.ASCII.GetString(data,0,9)=="PCCHELLO2")
+                    string greeting = data.Length == 13 ? Encoding.ASCII.GetString(data, 0, 9) : "";
+                    if (greeting == "PCCHELLO2" || greeting == "PCCHELLO3" || greeting == "PCCHELLO4")
                     {
+                        int requestedVersion = greeting[8] - '0';
                         int w=BitConverter.ToUInt16(data,9), h=BitConverter.ToUInt16(data,11);
                         if(w<128 || h<128 || w>2048 || h>2048 || w*h>1000000) continue;
                         if(peer==null) {
                             width=w; height=h;
                             lock(gate) for(int bufferIndex=0;bufferIndex<3;bufferIndex++) pool.Push(new byte[w*h*4]);
                             peer=from;
+                            protocolVersion = requestedVersion;
                             connected=true;
                         }
-                        if(peer.Equals(from) && width==w && height==h) {
+                        if(peer.Equals(from) && width==w && height==h && requestedVersion==protocolVersion) {
                             heartbeat=Now();
-                            byte[] accept=new byte[12]; accept[0]=80;accept[1]=67;accept[2]=65;accept[3]=50;
+                            byte[] accept=new byte[12]; accept[0]=80;accept[1]=67;accept[2]=65;accept[3]=(byte)('0' + protocolVersion);
                             Put(accept,4,BitConverter.GetBytes(run)); Put(accept,8,BitConverter.GetBytes((ushort)width));Put(accept,10,BitConverter.GetBytes((ushort)height));
                             socket.Send(accept,accept.Length,peer);
                         }
                         continue;
                     }
                     if(peer==null || !from.Equals(peer)) continue;
-                    if(data.Length==72 && data[0]==80 && data[1]==67 && data[2]==80 && data[3]==50 && BitConverter.ToUInt32(data,4)==run)
+                    int poseSize = protocolVersion == 4 ? 84 : grabProtocol ? 80 : 72;
+                    if(data.Length==poseSize && data[0]==80 && data[1]==67 && data[2]==80 && data[3]=='0'+protocolVersion && BitConverter.ToUInt32(data,4)==run)
                     {
                         if(BitConverter.ToInt32(data,64)!=owner.targetInstance || BitConverter.ToInt32(data,68)!=owner.targetRevision) continue;
-                        PoseData p=new PoseData(); p.revision=BitConverter.ToInt32(data,68); p.reference=BitConverter.ToInt64(data,16); p.received=Now();
+                        PoseData p=new PoseData(); p.revision=BitConverter.ToInt32(data,68); p.reference=BitConverter.ToInt64(data,16); p.received=packet.received;
                         float[] v=new float[8]; bool valid=true;
                         for(int n=0;n<8;n++) { v[n]=BitConverter.ToSingle(data,24+n*4); if(float.IsNaN(v[n])||float.IsInfinity(v[n])) valid=false; }
                         float norm=v[3]*v[3]+v[4]*v[4]+v[5]*v[5]+v[6]*v[6];
                         long seq=BitConverter.ToInt64(data,8);
-                        if(valid && norm>.9f && norm<1.1f && v[7]>=.02f && v[7]<=25f && seq>lastPose) { lastPose=seq; int command=BitConverter.ToInt32(data,60); if(command!=lastFrameRequest) { lastFrameRequest=command; Interlocked.Exchange(ref frameRequest,p.revision); } p.x=v[0];p.y=v[1];p.z=v[2];p.qx=v[3];p.qy=v[4];p.qz=v[5];p.qw=v[6];p.scale=v[7];p.hold=data[56]!=0; p.alignHorizons=data[57]==1; lock(gate) latest=p; heartbeat=Now(); }
+                        if (valid && norm > .9f && norm < 1.1f && v[7] >= .02f && v[7] <= 25f && seq > lastPose)
+                        {
+                            lastPose = seq;
+                            p.frameCommand = BitConverter.ToInt32(data, 60);
+                            p.x = v[0]; p.y = v[1]; p.z = v[2];
+                            p.qx = v[3]; p.qy = v[4]; p.qz = v[5]; p.qw = v[6]; p.scale = v[7];
+                            p.hold = data[56] != 0;
+                            p.alignHorizons = data[57] == 1;
+                            if (grabProtocol)
+                            {
+                                p.grabEnabled = data[58] == 1;
+                                p.grabGesture = BitConverter.ToInt32(data, 72);
+                                p.grabFrame = BitConverter.ToUInt32(data, 76);
+                                if (protocolVersion == 4)
+                                {
+                                    p.showGrabHints = (data[59] & 1) != 0;
+                                    int mode = data[59] & GrabAxes;
+                                    if (mode != 0) p.grabMode = mode;
+                                    if (mode == GrabPosition && (data[59] & GrabRotationOff) != 0)
+                                        p.grabMode |= GrabRotationOff;
+                                    if (mode == GrabAxes && (data[59] & GrabHeadOnly) != 0)
+                                        p.grabMode |= GrabHeadOnly;
+                                    float radius = BitConverter.ToSingle(data, 80);
+                                    if (radius >= .01f && radius <= .5f) p.grabRadius = radius;
+                                }
+                            }
+                            lock (gate) latest = p;
+                            if (p.frameCommand != lastFrameRequest)
+                            {
+                                lastFrameRequest = p.frameCommand;
+                                Interlocked.Exchange(ref frameRequest, p.revision);
+                            }
+                            heartbeat = Now();
+                        }
                         continue;
                     }
                     if(data.Length==12 && data[0]==80 && data[1]==66 && data[2]==65 && data[3]==49 && BitConverter.ToUInt32(data,4)==run)
@@ -575,17 +639,47 @@ namespace MVRPlugin
                             uint seq;
                             lock(gate) { seq=(uint)encoded++; jpegSizes.Add(count); encodeTimes.Add((encodedAt-began)*1000); ageTimes.Add((encodedAt-frame.started)*1000); awaiting[seq]=frame.started; if(awaiting.Count>128) awaiting.Clear(); if(encodeTimes.Count>300) { encodeTimes.Clear(); jpegSizes.Clear(); ageTimes.Clear(); sendTimes.Clear(); ackTimes.Clear(); } }
                             if(frame.revision != owner.targetRevision) continue;
-                            const int chunk=1164;
-                            int fragments=(count+chunk-1)/chunk;
-                            byte[] packet=new byte[1200]; packet[0]=80;packet[1]=67;packet[2]=70;packet[3]=50;
+                            int headerSize = grabProtocol ? 48 : 36;
+                            int chunk = 1200 - headerSize;
+                            GrabMarker marker = grabProtocol ? frame.grab : null;
+                            int hintCount = protocolVersion == 4 && marker != null && marker.hints != null
+                                ? marker.hints.Length : 0;
+                            int hintBytes = hintCount * 4;
+                            int fragments = (count + hintBytes + chunk - 1) / chunk;
+                            byte[] packet=new byte[1200]; packet[0]=80;packet[1]=67;packet[2]=70;
+                            packet[3]=(byte)('0' + protocolVersion);
                             Put(packet,4,BitConverter.GetBytes(run)); Put(packet,8,BitConverter.GetBytes(seq));
                             Put(packet,14,BitConverter.GetBytes((ushort)fragments)); Put(packet,16,BitConverter.GetBytes(count)); Put(packet,20,BitConverter.GetBytes(frame.started));
                             Put(packet,28,BitConverter.GetBytes(owner.targetInstance)); Put(packet,32,BitConverter.GetBytes(frame.revision));
+                            if (marker != null)
+                            {
+                                if (marker.state == GrabOffer)
+                                {
+                                    lock (gate) grabOffers[seq % GrabHistorySize] = new GrabOfferFrame
+                                    {
+                                        id = seq, revision = frame.revision,
+                                        started = frame.started, marker = marker
+                                    };
+                                }
+                                Put(packet, 36, BitConverter.GetBytes(marker.x));
+                                Put(packet, 38, BitConverter.GetBytes(marker.y));
+                                packet[40] = marker.state;
+                                packet[41] = (byte)hintCount;
+                                Put(packet, 44, BitConverter.GetBytes(marker.gesture));
+                                for (int i = 0; i < hintCount; i++)
+                                {
+                                    Put(packet, headerSize + i * 4, BitConverter.GetBytes(marker.hints[i].x));
+                                    Put(packet, headerSize + i * 4 + 2, BitConverter.GetBytes(marker.hints[i].y));
+                                }
+                            }
                             for(int n=0;n<fragments && !stop;n++)
                             {
-                                int length=Math.Min(chunk,count-n*chunk);
-                                Put(packet,12,BitConverter.GetBytes((ushort)n)); Array.Copy(encoder.OutputBuffer,n*chunk,packet,36,length);
-                                socket.Send(packet,36+length,peer);
+                                int payloadOffset = headerSize + (n == 0 ? hintBytes : 0);
+                                int jpegOffset = n == 0 ? 0 : n * chunk - hintBytes;
+                                int length = Math.Min(1200 - payloadOffset, count - jpegOffset);
+                                Put(packet,12,BitConverter.GetBytes((ushort)n));
+                                Array.Copy(encoder.OutputBuffer, jpegOffset, packet, payloadOffset, length);
+                                socket.Send(packet, payloadOffset + length, peer);
                                 lock(gate) packets++;
                                 if(n%32==31) Poll();
                             }

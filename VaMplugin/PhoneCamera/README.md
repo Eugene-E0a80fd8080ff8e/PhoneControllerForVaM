@@ -24,6 +24,28 @@ reference without moving the current view. Tracking loss freezes pose. Leaving t
 page releases tracking and the socket. The server's two-second lease expires and
 returns to listening. Cold launch still opens the original controller.
 
+Scene and session plugins select and frame the first Person by name when a
+phone first connects to an unselected scene. Numbered names sort naturally,
+so Person2 comes before Person10.
+
+## Grab
+
+Tap the red **Grab** button at the bottom right to show or hide visible eligible
+points and the catch-radius circle. Aim near a joint or movable object point
+until the button turns green.
+The menu to the left of **Grab** offers **Pos**, **Rot**, **Pos&Rot**,
+**Pos&Relax** (default), and **Head Only**. Hold **Grab** to move the point with
+the camera, then lift your finger to release. **Pos&Rot** uses the axes the
+controller allows. **Pos&Relax** drives position and lets VaM physics handle
+rotation. **Head Only** drives both axes of a Person’s head and turns off the
+other editable body controls during the grab. Release restores the prior states.
+Adjust **Grab catch radius** in Camera settings as a percentage of the image’s
+shorter edge.
+The grip releases if tracking stops or the target, scale, Hold, or framing
+changes. Turn off **Show Grab button** under **Settings → Camera** to hide the
+control and its highlight. See [the protocol notes](../../docs/TARGET_PROTOCOL.md#camera-grab)
+for version negotiation and frame metadata.
+
 ## Wire format, initial version
 
 All integers/floats little-endian. Session is server-assigned uint32, nonzero.
