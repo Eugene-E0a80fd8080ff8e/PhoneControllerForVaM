@@ -20,12 +20,40 @@
     <string name="pref_host_hint">Enter the VaM computer’s hostname or IP address. Leave blank for automatic discovery.</string>
     <string name="pref_title_network_port">UDP port</string>
     <string name="pref_title_network_freq">Joint update rate</string>
+    <string name="pref_camera_resolution">Stream resolution</string>
+    <string name="pref_camera_resolution_summary">%s equivalent · Fits the preview</string>
+    <string-array name="camera_resolution_labels">
+        <item>240p</item>
+        <item>360p</item>
+        <item>480p</item>
+        <item>560p</item>
+        <item>640p</item>
+        <item>720p</item>
+    </string-array>
+    <string-array name="camera_resolution_values">
+        <item>240</item>
+        <item>360</item>
+        <item>480</item>
+        <item>560</item>
+        <item>640</item>
+        <item>720</item>
+    </string-array>
+    <string name="camera_target_show_all">Show all</string>
+    <string name="camera_live">Live</string>
+    <string name="camera_live_description">Live · %1$d × %2$d pixels</string>
     <string name="pref_align_horizons">Keep VaM and real horizons aligned</string>
     <string name="pref_align_horizons_summary">Use the phone’s tilt relative to gravity</string>
     <string name="pref_scale_presets">Position scale presets</string>
     <string name="pref_scale_presets_hint">Enter scales from 0.02x to 25x, separated by commas. For example, 0.6, 1, 3, 10.</string>
     <string name="pref_scale_presets_invalid">Enter one or more scales from 0.02x to 25x, separated by commas.</string>
     <string name="camera_scale_accessibility">Position scale %1$s</string>
+    <string name="camera_actions_open">Show camera actions</string>
+    <string name="camera_actions_close">Hide camera actions</string>
+    <string name="camera_action_start">Start</string>
+    <string name="camera_action_stop">Stop</string>
+    <string name="camera_action_hold">Hold</string>
+    <string name="camera_action_resume">Resume</string>
+    <string name="camera_action_frame">Frame</string>
     <string name="camera_permission_required">Camera permission is required for tracking. Tap Start to try again.</string>
 
     <string-array name="pref_network_freq_titles">

@@ -2,14 +2,18 @@ package local.movementtrackerforvam.movementtrackerforvam;
 
 import android.app.AlertDialog;
 import android.content.Context;
+import android.graphics.Color;
 import android.os.Handler;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.text.TextUtils;
+import android.view.Gravity;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ListView;
+import android.widget.ListPopupWindow;
 import android.widget.TextView;
 import java.util.ArrayList;
 import java.util.List;
@@ -22,6 +26,10 @@ public final class TargetBar extends LinearLayout {
     private final boolean controller;
     private final Runnable changed;
     private boolean active;
+    private Runnable frameCurrent;
+    private ListPopupWindow peoplePicker;
+    private List<TargetConnection.AtomChoice> people = new ArrayList<>();
+    private int pickerInstance;
     private AlertDialog chooser;
     private Runnable updateChoices;
     private final Runnable refresh = new Runnable() {
@@ -38,14 +46,32 @@ public final class TargetBar extends LinearLayout {
         this.controller = controller;
         this.changed = changed;
         setOrientation(VERTICAL);
-        button = new Button(context);
+        button = controller ? new Button(context) : new CameraOverlayButton(context);
         button.setAllCaps(false);
-        addView(button, new LayoutParams(-1, -2));
         explanation = new TextView(context);
-        explanation.setPadding(12, 0, 12, 8);
-        addView(explanation, new LayoutParams(-1, -2));
-        button.setOnClickListener(v -> choose());
+        if (controller) {
+            addView(button, new LayoutParams(-1, -2));
+            explanation.setPadding(12, 0, 12, 8);
+            addView(explanation, new LayoutParams(-1, -2));
+        } else {
+            setGravity(Gravity.START);
+            button.setSingleLine();
+            button.setEllipsize(TextUtils.TruncateAt.END);
+            explanation.setTextColor(Color.WHITE);
+            explanation.setBackground(CameraOverlayButton.background(context, 0xDF17212B, false));
+            explanation.setPadding(dp(8), dp(12), dp(8), dp(12));
+            addView(explanation, new LayoutParams(-2, -2));
+            addView(button, new LayoutParams(-2, dp(48)));
+        }
+        button.setOnClickListener(v -> {
+            if (controller) choose();
+            else openCameraTargets();
+        });
         render();
+    }
+
+    void setFrameCurrentAction(Runnable action) {
+        frameCurrent = action;
     }
 
     public void start() {
@@ -59,7 +85,7 @@ public final class TargetBar extends LinearLayout {
         if (!active) return;
         active = false;
         handler.removeCallbacks(refresh);
-        if (chooser != null) chooser.dismiss();
+        dismissPickers();
         TargetConnection.release();
     }
 
@@ -69,9 +95,12 @@ public final class TargetBar extends LinearLayout {
         String label = "Target unavailable";
         String message = TargetConnection.notice;
         if (connected) {
-            label = state.installation + " · " + state.name;
-            if (!state.type.isEmpty()) label += " (" + state.type + ")";
-            if (state.selectable) label += " ▾";
+            label = state.name;
+            if (controller) {
+                label = state.installation + " · " + label;
+                if (!state.type.isEmpty()) label += " (" + state.type + ")";
+            }
+            if (state.selectable) label += controller ? " ▾" : " ▴";
             if (state.loading) {
                 message = "Scene is loading";
             } else if (state.target == 0 && message.isEmpty()) {
@@ -86,13 +115,82 @@ public final class TargetBar extends LinearLayout {
         } else if (message.isEmpty()) {
             message = "Disconnected — waiting for target information";
         }
-        button.setText(label);
-        button.setEnabled(connected && state.selectable && !TargetConnection.pending());
-        explanation.setText(message);
+        if (!TextUtils.equals(button.getText(), label)) button.setText(label);
+        boolean canSelect = connected && state.selectable && !TargetConnection.pending();
+        boolean canFrame = !controller && connected && state.target != 0 && !state.loading
+                && !TargetConnection.pending();
+        button.setEnabled(canSelect || canFrame);
+        if (!TextUtils.equals(explanation.getText(), message)) explanation.setText(message);
         explanation.setVisibility(message.isEmpty() ? GONE : VISIBLE);
+
+        if (peoplePicker != null || chooser != null) {
+            if (!canSelect || pickerInstance != state.instance) dismissPickers();
+            else if (peoplePicker != null) updatePeoplePicker();
+        }
+    }
+
+    private void openCameraTargets() {
+        TargetConnection.State state = TargetConnection.state;
+        if (state == null || !state.fresh() || state.loading || TargetConnection.pending()) return;
+        if (!state.selectable) {
+            if (state.target != 0 && frameCurrent != null) frameCurrent.run();
+            return;
+        }
+
+        pickerInstance = state.instance;
+        peoplePicker = new ListPopupWindow(getContext());
+        peoplePicker.setAnchorView(button);
+        peoplePicker.setDropDownGravity(Gravity.START);
+        peoplePicker.setModal(true);
+        peoplePicker.setInputMethodMode(ListPopupWindow.INPUT_METHOD_NOT_NEEDED);
+        peoplePicker.setWidth(Math.min(dp(280), getRootView().getWidth() - dp(16)));
+        peoplePicker.setOnItemClickListener((parent, view, position, id) -> {
+            TargetConnection.AtomChoice selected = position < people.size() ? people.get(position) : null;
+            peoplePicker.dismiss();
+            if (selected == null) choose();
+            else selectAtom(selected);
+        });
+        peoplePicker.setOnDismissListener(() -> peoplePicker = null);
+        updatePeoplePicker();
+        peoplePicker.show();
+    }
+
+    private void updatePeoplePicker() {
+        List<TargetConnection.AtomChoice> current = new ArrayList<>();
+        for (TargetConnection.AtomChoice atom : TargetConnection.choices()) {
+            if ("Person".equals(atom.type)) current.add(atom);
+        }
+        if (peoplePicker.getListView() != null && people.equals(current)) return;
+        people = current;
+        List<String> labels = new ArrayList<>();
+        for (TargetConnection.AtomChoice atom : people) labels.add(atom.name);
+        labels.add(getContext().getString(R.string.camera_target_show_all));
+        peoplePicker.setAdapter(new ArrayAdapter<>(getContext(), android.R.layout.simple_list_item_1, labels));
+        if (peoplePicker.isShowing()) peoplePicker.show();
+    }
+
+    private void dismissPickers() {
+        if (peoplePicker != null) peoplePicker.dismiss();
+        if (chooser != null) chooser.dismiss();
+    }
+
+    private void selectAtom(TargetConnection.AtomChoice atom) {
+        TargetConnection.State state = TargetConnection.state;
+        if (state == null || !state.fresh() || state.instance != pickerInstance || TargetConnection.pending()) return;
+        if (!controller && state.target == atom.id && frameCurrent != null) frameCurrent.run();
+        else TargetConnection.select(atom.id);
+        render();
+        changed.run();
+    }
+
+    private int dp(int value) {
+        return CameraOverlayButton.dp(getContext(), value);
     }
 
     private void choose() {
+        TargetConnection.State state = TargetConnection.state;
+        if (state == null || !state.fresh() || !state.selectable || TargetConnection.pending()) return;
+        pickerInstance = state.instance;
         LinearLayout panel = new LinearLayout(getContext());
         panel.setOrientation(VERTICAL);
         EditText search = new EditText(getContext());
@@ -111,10 +209,8 @@ public final class TargetBar extends LinearLayout {
                 .create();
         list.setOnItemClickListener((parent, view, position, id) -> {
             TargetConnection.AtomChoice atom = (TargetConnection.AtomChoice) parent.getItemAtPosition(position);
-            TargetConnection.select(atom.id);
             dialog.dismiss();
-            render();
-            changed.run();
+            selectAtom(atom);
         });
         search.addTextChangedListener(new TextWatcher() {
             public void beforeTextChanged(CharSequence text, int start, int count, int after) { }

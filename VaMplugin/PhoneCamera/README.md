@@ -5,7 +5,7 @@ This directory contains supporting code for that one plugin, not a separate entr
 Both body control and camera streaming share UDP 62701; the phone page selects
 which traffic to send. Remove old standalone instances when upgrading.
 
-Install the Android debug APK, open **Camera** in the toolbar, and press Start.
+Install the Android debug APK, open **Camera** in the toolbar, and use **Start** in the camera actions menu.
 The app requests camera permission and ARCore services as needed. In **Settings → Common**,
 leave the VaM host blank for LAN discovery or enter the host address.
 
@@ -13,9 +13,9 @@ Tap the scale over the camera image to select a preset. Edit the list under
 **Settings → Camera → Position scale presets**. Scales range from 0.02x to 25x,
 and the active scale starts at 1x.
 
-The camera UI stays in portrait. On connection the phone requests an even-sized
-image matching its video viewport, at approximately the previous 640x360 pixel
-budget. VaM renders at that aspect ratio rather than cropping a landscape image.
+Choose **Stream resolution** under **Settings → Camera**. Presets are 240p, 360p
+(default), 480p, 560p, 640p, and 720p. Each is a 16:9 pixel budget. The phone requests
+even dimensions that fit its portrait preview, and VaM renders at that aspect ratio.
 JPEG quality 75 and requested 30 fps remain fixed, with UI layers excluded.
 Physical roll remains tracked, independently of the locked Android UI.
 
@@ -33,8 +33,8 @@ All integers/floats little-endian. Session is server-assigned uint32, nonzero.
   initially or unicast to the configured address. First client owns the lease.
 - Accept: 12 bytes: `PCA2`, uint32 session, uint16 width, uint16 height.
   Both sides must be updated; older greetings are deliberately rejected.
-  Size bounds: 128–1024 per axis and at most 300000 pixels. Negotiation is fixed
-  for the session; changing the viewport size takes effect on the next Start.
+  Size bounds are 128–2048 per axis and at most 1,000,000 pixels. The selected
+  resolution and preview size take effect when the next stream session starts.
 - Pose: 72 bytes: `PCP2`, session at 4, int64 increasing sequence at 8, int64
   reference at 16, eight float32 values at 24 (x,y,z,qx,qy,qz,qw,scale), held byte
   at 56, horizon alignment at 57, reserved bytes 58–59, frame command at 60, plugin instance at 64 and target revision at 68. Position is meters in the ARCore anchor
@@ -46,7 +46,7 @@ All integers/floats little-endian. Session is server-assigned uint32, nonzero.
   is up to 1164 bytes. Max datagram payload 1200 bytes.
 - Decoded feedback: `PBA1`, session uint32, frame uint32 (12 bytes).
 
-This initial protocol has fixed settings, no encryption, no Internet exposure,
+The protocol has no encryption, no Internet exposure,
 and no retransmission of video. The benchmark protocol remains separate on 62710.
 
 ## Validation and remaining plan work
@@ -73,7 +73,7 @@ replaceable latest pending JPEG, and one replaceable pending image for the UI.
 Stopping closes the pending-work queue without waiting on the Android UI thread.
 Session/generation checks discard results from an old connection.
 
-The phone's **Frame object** button (and VaM's **Frame target**) places
+The phone's **Frame** action (and VaM's **Frame target**) places
 the virtual camera on the selected atom's front side, aimed at its bounds center.
 Its perspective fit reserves 5% on each edge, fitting within 90% of both width and
 height; whichever dimension limits the fit wins. It uses the current stream aspect

@@ -520,7 +520,7 @@ namespace MVRPlugin
                     if(data.Length==13 && Encoding.ASCII.GetString(data,0,9)=="PCCHELLO2")
                     {
                         int w=BitConverter.ToUInt16(data,9), h=BitConverter.ToUInt16(data,11);
-                        if(w<128 || h<128 || w>1024 || h>1024 || w*h>300000) continue;
+                        if(w<128 || h<128 || w>2048 || h>2048 || w*h>1000000) continue;
                         if(peer==null) {
                             width=w; height=h;
                             lock(gate) for(int bufferIndex=0;bufferIndex<3;bufferIndex++) pool.Push(new byte[w*h*4]);

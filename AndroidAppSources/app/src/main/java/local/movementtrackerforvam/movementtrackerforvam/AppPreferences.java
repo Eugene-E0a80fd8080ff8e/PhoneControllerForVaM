@@ -16,6 +16,7 @@ final class AppPreferences {
     static final String VAM_HOST = "host";
     static final String LAST_SERVER = "last_server";
     static final String ALIGN_HORIZONS = "align_horizons";
+    static final String CAMERA_RESOLUTION = "camera_resolution";
     static final String POSITION_SCALE = "scale";
     static final String SCALE_PRESETS = "scale_presets";
     private static final String DEFAULT_SCALE_PRESETS = "0.6, 1, 3, 10";
