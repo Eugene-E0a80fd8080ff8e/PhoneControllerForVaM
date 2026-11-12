@@ -11,7 +11,9 @@ It works just like VR headset's inside-out tracking, but with a single camera. (
 
 I tested it on Pixel 6.
 
-<img src="images/photo_2026-11-12_18-09-12.jpg" width="33%"><img src="images/photo_2026-11-12_18-09-02.jpg" width="33%"><img src="images/20261112_180208.jpg" width="33%">
+<img src="images/photo_2026-11-12_18-09-12.jpg" width="40%"><img src="images/photo_2026-11-12_18-09-02.jpg" width="40%">
+
+<img src="images/20261112_180208.jpg" width="80%">
 
 ## Installation
 
@@ -19,28 +21,14 @@ Download .var file of version 0.4 from this page: <https://github.com/Eugene-E0a
 Put this file in your VaM's **AddonPackages** folder.
 
 From the same page, download .apk file and install it on your phone. You may scroll down to **Installation and set up** for some instruction. 
-The actual procedure of installing an .apk file might differ from brand to brand and from android version to version.
 
+The actual procedure of installing an .apk file might differ from brand to brand and from android version to version.
 If something goes wrong -- ask ChatGPT, Grok or Gemini (or an AI of your like), providing it with the link to this page and explain your intention and a problem.
 
-
-## Network setup
-
-In short: 
- - the VaM plugin opens UDP port 62701 for listening and sets up a beacon on the same port broadcasting "I am here" every 300ms, expecting to be replied back into that port.
- - Android app looks for that broadcasts and communicates back.
-
-This plugin is designed to work inside your local network. In simple words, connect both your computer and the phone to the same Wi-Fi router. 
-Make sure your devices are allowed to see each other over the local network -- normally it is so, unless you have some obscure privacy/security settings enabled.
-
-Make sure your computer allowed to open ports and send trattic into this network. On windows you need to set your network to be Private Network (nomally it is alread so, as it is required to interact with printers, TVs, VR HMD's, etc)
-
-On linux, be reminded that **ufw status** and maybe do **sudo ufw allow 62701/udp** if needed.
+Add the plugin to **Scene atom**, Session Atom or Person atom. The is a **single .cslist file** inside the .var -- add it.
 
 
 ## UI
-
-Add the plugin to Scene atom, Session Atom or Person atom. The is a single .cslist file inside the .var -- add it.
 
 1. **Scale** changes the ratio of mapping between your physical world and inner world of VaM.
 
@@ -59,6 +47,19 @@ Add the plugin to Scene atom, Session Atom or Person atom. The is a single .csli
  - **pos&relax** -- moves position, sets rotation to "off" while in move, so rotation is defined by VaM's physics engine. (default)
  - **head only** -- grabs head and sets other controllers to "off" state. Lets you move a person just like a chess figure.
 
+## Network setup
+
+In short: 
+ - the VaM plugin opens UDP port 62701 for listening and sets up a beacon on the same port broadcasting "I am here" every 300ms, expecting to be replied back into that port.
+ - Android app looks for that broadcasts and communicates back.
+
+This plugin is designed to work inside your local network. In simple words, connect both your computer and the phone to the same Wi-Fi router. 
+Make sure your devices are allowed to see each other over the local network -- normally it is so, unless you have some obscure privacy/security settings enabled.
+
+Make sure your computer allowed to open ports and send trattic into this network. On windows you need to set your network to be Private Network (nomally it is alread so, as it is required to interact with printers, TVs, VR HMD's, etc)
+
+On linux, be reminded that **ufw status** and maybe do **sudo ufw allow 62701/udp** if needed.
+
 
 
 ## Future plans
@@ -69,7 +70,7 @@ Add the plugin to Scene atom, Session Atom or Person atom. The is a single .csli
 
 
 
-# Legacy PhoneControllerForVaM
+# old PhoneControllerForVaM 
 
 This functions are still available in this updated version. You can switch to it by clicking "JOINTS" at the top bar.
 
