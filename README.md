@@ -1,4 +1,78 @@
 # PhoneControllerForVaM
+
+(this project was created with help of AI assistant)
+
+This plugin lets you use your Android phone with VaM. 
+All the functionality is set up around a virtual camera which moves inside VaM space as you move your phone around.
+Your phone will ask as a **Virtual Camera** from inside the VaM.
+
+This is done by using Google's new positioning API for Android phones -- ARCore. It fuses together data from accelerometer, gyrometer, magnetic compas, and camera movement to figure out precise phone position in space. 
+It works just like VR headset's inside-out tracking, but with a single camera. (look up **ARCore demo** at youtube).
+
+I tested it on Pixel 6.
+
+<img src="images/photo_2026-11-12_18-09-12.jpg" width="33%"><img src="images/photo_2026-11-12_18-09-02.jpg" width="33%"><img src="images/20261112_180208.jpg" width="33%">
+
+## Installation
+
+Download .var file of version 0.4 from this page: <https://github.com/Eugene-E0a80fd8080ff8e/PhoneControllerForVaM/releases> .
+Put this file in your VaM's **AddonPackages** folder.
+
+From the same page, download .apk file and install it on your phone. You may scroll down to **Installation and set up** for some instruction. 
+The actual procedure of installing an .apk file might differ from brand to brand and from android version to version.
+
+If something goes wrong -- ask ChatGPT, Grok or Gemini (or an AI of your like), providing it with the link to this page and explain your intention and a problem.
+
+
+## Network setup
+
+In short: 
+ - the VaM plugin opens UDP port 62701 for listening and sets up a beacon on the same port broadcasting "I am here" every 300ms, expecting to be replied back into that port.
+ - Android app looks for that broadcasts and communicates back.
+
+This plugin is designed to work inside your local network. In simple words, connect both your computer and the phone to the same Wi-Fi router. 
+Make sure your devices are allowed to see each other over the local network -- normally it is so, unless you have some obscure privacy/security settings enabled.
+
+Make sure your computer allowed to open ports and send trattic into this network. On windows you need to set your network to be Private Network (nomally it is alread so, as it is required to interact with printers, TVs, VR HMD's, etc)
+
+On linux, be reminded that **ufw status** and maybe do **sudo ufw allow 62701/udp** if needed.
+
+
+## UI
+
+Add the plugin to Scene atom, Session Atom or Person atom. The is a single .cslist file inside the .var -- add it.
+
+1. **Scale** changes the ratio of mapping between your physical world and inner world of VaM.
+
+2. Top-right controls: **Hold** -- holds virtual camera in one place, disconnects in from the phone movement; camera will keep updating. **Frame** -- moves the camera (changes world mapping so that your camera looks at) to look at the selected object.
+
+3. Bottom-left: changes currently selected object.
+
+4. Bottom-right: depending on yours settings, there might be buttons "Grab", 'Take picture".
+
+4.1. **Take picture** -- takes a picture and saves it to the gallery of your phone. This button is disabled in settings by default.
+
+4.2. **Grab** -- allows grabbing and moving. Moves joints for a person; moves root for an object. 
+ - **pos** -- moves position, keeps rotation as is
+ - **rot** -- moves rotation, keeps position as is
+ - **pos&rot** -- moves both
+ - **pos&relax** -- moves position, sets rotation to "off" while in move, so rotation is defined by VaM's physics engine. (default)
+ - **head only** -- grabs head and sets other controllers to "off" state. Lets you move a person just like a chess figure.
+
+
+
+## Future plans
+
+1. Maybe add a collider in front of the camera for inetractive-like experience ? (removable in settings page)
+
+2. POV mode for Person Atom or any other atom ? 
+
+
+
+# Legacy PhoneControllerForVaM
+
+This functions are still available in this updated version. You can switch to it by clicking "JOINTS" at the top bar.
+
 This plugin lets you use your phone as a 3-DoF VR controller in Virt-a-Mate. 
 You press a button on your phone to select a limb or the head.
 Then you rotate it in any directions with your phone.
